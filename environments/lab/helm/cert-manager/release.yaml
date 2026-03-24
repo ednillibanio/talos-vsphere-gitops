@@ -1,0 +1,6 @@
+releaseName: cert-manager
+namespace: cert-manager
+chart: jetstack/cert-manager
+version: 1.20.0
+valuesFile: overlays/lab/talos/talos/helm/cert-manager/values.yaml
+validationSelector: app.kubernetes.io/instance=cert-manager

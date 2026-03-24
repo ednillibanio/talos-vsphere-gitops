@@ -1,0 +1,6 @@
+releaseName: argocd
+namespace: argocd
+chart: oci://ghcr.io/argoproj/argo-helm/argo-cd
+version: 9.4.15
+valuesFile: overlays/lab/talos/talos/helm/argocd/values.yaml
+validationSelector: app.kubernetes.io/part-of=argocd

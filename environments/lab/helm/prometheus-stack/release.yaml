@@ -1,0 +1,6 @@
+releaseName: kube-prometheus-stack
+namespace: kube-prometheus-stack
+chart: oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack
+version: 82.13.6
+valuesFile: overlays/lab/talos/talos/helm/prometheus-stack/values.yaml
+validationSelector: app.kubernetes.io/instance=kube-prometheus-stack
