@@ -15,7 +15,7 @@ spec:
         releaseName: cilium
         valueFiles:
           - $values/environments/lab/helm/cilium/values.yaml
-    - repoURL: git@github.com:ednillibanio/talos-vsphere-gitops.git
+    - repoURL: https://github.com/ednillibanio/talos-vsphere-gitops.git
       targetRevision: main
       ref: values
   destination:

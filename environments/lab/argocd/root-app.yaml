@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: git@github.com:ednillibanio/talos-vsphere-gitops.git
+    repoURL: https://github.com/ednillibanio/talos-vsphere-gitops.git
     targetRevision: main
     path: environments/lab/argocd/apps
   destination:

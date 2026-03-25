@@ -12,7 +12,8 @@ from manual Helm execution to GitOps reconciliation.
 
 ## Apply
 
-Create repository credentials first if using a private repository:
+If the repository is private, create repository credentials first.
+If it is public, skip this step.
 
 ```bash
 cp environments/lab/argocd/repo-secret.example.yaml /tmp/repo-secret.yaml

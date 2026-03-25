@@ -15,7 +15,7 @@ spec:
         releaseName: longhorn
         valueFiles:
           - $values/environments/lab/helm/longhorn/values.yaml
-    - repoURL: git@github.com:ednillibanio/talos-vsphere-gitops.git
+    - repoURL: https://github.com/ednillibanio/talos-vsphere-gitops.git
       targetRevision: main
       ref: values
   destination:
