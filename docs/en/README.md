@@ -26,3 +26,5 @@ This is the English entrypoint for GitOps documentation.
   - `talos-vsphere-lab`
 - Future reusable Talos toolchain:
   - separate toolchain repository (in preparation)
+- Cross-repository execution handoff:
+  - `talos-vsphere-lab/docs/en/cross-repo-handoff.md`

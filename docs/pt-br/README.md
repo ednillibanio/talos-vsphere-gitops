@@ -27,3 +27,5 @@ Este e o ponto de entrada em Portugues (Brasil) para a documentacao GitOps.
   - `talos-vsphere-lab`
 - Futuro toolchain reutilizavel do Talos:
   - repositorio dedicado (em preparacao)
+- Handoff de execucao entre repositorios:
+  - `talos-vsphere-lab/docs/pt-br/cross-repo-handoff.md`
