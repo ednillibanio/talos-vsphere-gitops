@@ -4,8 +4,11 @@ This is the English entrypoint for GitOps documentation.
 
 ## Repository Purpose
 
-- Keep day-2 platform manifests as source of truth.
-- Be consumed by Argo CD root app from cluster automation.
+This repository owns Argo CD desired state, environment revision policy,
+platform services, and workloads after Kubernetes bootstrap. It:
+
+- Keeps day-2 platform manifests as source of truth.
+- Is consumed by the Argo CD root app from cluster automation.
 
 ## Current Structure
 
@@ -20,11 +23,20 @@ This is the English entrypoint for GitOps documentation.
   - `environments/lab/argocd/apps`
 - Child applications render/addon lifecycle from this repo.
 
+## Milestones
+
+- macOS Milestone A: a local cluster can be bootstrapped and reconciled
+  through `talos-toolchain` without any VMware provisioning. This repository's
+  Argo CD manifests apply the same way regardless of where the underlying
+  Kubernetes cluster runs.
+- vSphere provisioning and VIP validation are a later, deferred milestone
+  owned by `provision-talos-vsphere`, not a dependency of local macOS work.
+
 ## Related Repositories
 
-- Day-1 bootstrap/tooling integration:
-  - `talos-vsphere-lab`
-- Future reusable Talos toolchain:
-  - separate toolchain repository (in preparation)
+- Talos day-1/day-2 lifecycle CLI (canonical Talos CTL):
+  - `talos-toolchain`
+- vSphere/ESXi provisioning integration:
+  - `provision-talos-vsphere`
 - Cross-repository execution handoff:
-  - `talos-vsphere-lab/docs/en/cross-repo-handoff.md`
+  - `provision-talos-vsphere/docs/en/cross-repo-handoff.md`
