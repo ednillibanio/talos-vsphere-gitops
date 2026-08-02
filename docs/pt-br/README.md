@@ -28,6 +28,10 @@ apos o bootstrap do Kubernetes. Ele:
   branch do ambiente (`lab` -> `lab`, `main` -> `main`); veja
   `docs/pt-br/branch-revision-promotion.md` para o contrato, o validador
   offline e o procedimento de promocao.
+- A Application `addon-cilium` adota um Helm release do Cilium ja em
+  execucao, inicializado de forma imperativa, em vez de instalar um novo;
+  veja `docs/pt-br/cilium-adoption.md` para o contrato de
+  prontidao/adocao/rollback e seu validador offline.
 
 ## Marcos (Milestones)
 

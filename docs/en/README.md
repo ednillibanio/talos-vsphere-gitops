@@ -26,6 +26,10 @@ platform services, and workloads after Kubernetes bootstrap. It:
   environment's own branch (`lab` -> `lab`, `main` -> `main`); see
   `docs/en/branch-revision-promotion.md` for the contract, the offline
   validator, and the promotion procedure.
+- The `addon-cilium` Application adopts an already-running, imperatively
+  bootstrapped Cilium Helm release rather than installing a new one; see
+  `docs/en/cilium-adoption.md` for the readiness/adoption/rollback contract
+  and its offline validator.
 
 ## Milestones
 
