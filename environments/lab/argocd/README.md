@@ -37,3 +37,7 @@ kubectl apply -f environments/lab/argocd/root-app.yaml
   - Source B: this Git repository (`ref: values`) for values files.
 - Update `repoURL` or `targetRevision` if your repository address or branch
   differs from current defaults.
+- `targetRevision` for this repository's own sources must stay `lab` for
+  everything under `environments/lab`; see
+  `docs/en/branch-revision-promotion.md` (`docs/pt-br/` for PT-BR) before
+  promoting to another environment.

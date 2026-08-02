@@ -24,6 +24,10 @@ apos o bootstrap do Kubernetes. Ele:
   - `environments/lab/argocd/apps`
 - Os apps filhos e o ciclo de vida dos addons sao renderizados a partir deste
   repositorio.
+- Os sources do Argo CD de cada ambiente fixam o `targetRevision` no proprio
+  branch do ambiente (`lab` -> `lab`, `main` -> `main`); veja
+  `docs/pt-br/branch-revision-promotion.md` para o contrato, o validador
+  offline e o procedimento de promocao.
 
 ## Marcos (Milestones)
 

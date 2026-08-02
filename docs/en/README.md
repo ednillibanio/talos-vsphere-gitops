@@ -22,6 +22,10 @@ platform services, and workloads after Kubernetes bootstrap. It:
 - Argo CD root app path currently points to:
   - `environments/lab/argocd/apps`
 - Child applications render/addon lifecycle from this repo.
+- Every environment's Argo CD sources pin `targetRevision` to that
+  environment's own branch (`lab` -> `lab`, `main` -> `main`); see
+  `docs/en/branch-revision-promotion.md` for the contract, the offline
+  validator, and the promotion procedure.
 
 ## Milestones
 
