@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: addon-example
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://charts.example.com
+      chart: example
+      targetRevision: 1.0.0
+      helm:
+        releaseName: example
+        valueFiles:
+          - $values/environments/lab/helm/example/values.yaml
+    - repoURL: https://github.com/ednillibanio/talos-vsphere-gitops.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: example

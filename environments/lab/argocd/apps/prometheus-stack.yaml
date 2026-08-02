@@ -16,7 +16,7 @@ spec:
         valueFiles:
           - $values/environments/lab/helm/prometheus-stack/values.yaml
     - repoURL: https://github.com/ednillibanio/talos-vsphere-gitops.git
-      targetRevision: main
+      targetRevision: lab
       ref: values
   destination:
     server: https://kubernetes.default.svc
