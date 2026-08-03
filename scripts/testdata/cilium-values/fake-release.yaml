@@ -1,0 +1,6 @@
+releaseName: cilium
+namespace: kube-system
+chart: oci://example.invalid/charts/cilium
+version: 0.0.0-test
+valuesFile: scripts/testdata/cilium-values/valid/values.yaml
+validationSelector: k8s-app=cilium

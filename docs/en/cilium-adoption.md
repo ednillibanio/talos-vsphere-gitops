@@ -70,6 +70,27 @@ against the actual synced day-1 release on the toolchain side).
 5. From this point on, Argo CD exclusively reconciles Cilium; no repository
    or script should perform another imperative Cilium install.
 
+## Values-file ownership
+
+`environments/<env>/helm/cilium/values.yaml` holds only this lab's owned
+overrides — the keys where the desired state intentionally diverges from the
+Cilium chart's own defaults (e.g. `k8sServiceHost`/`k8sServicePort`,
+`ingressController`, `gatewayAPI`, `encryption`, `ipam.mode`,
+`kubeProxyReplacement`, `cgroup`). It is not, and must not become again, a
+vendored copy of the chart's full default `values.yaml`: every key this file
+does not set falls back to the chart's own built-in default at render time,
+same as day-1's `helm upgrade --install` and Argo CD's render resolve it.
+`scripts/validate-cilium-values-overrides.sh` checks this contract offline —
+that the file still declares every documented override key, carries none of
+the chart's generated "DO NOT EDIT" vendoring marker, and has no leftover
+`values.base.yaml` sitting next to it — and renders the file against the
+pinned chart version with `helm template` when Helm can resolve that chart
+from the registry (no live cluster, no credentials). Run
+`scripts/validate-cilium-values-overrides.test.sh` to confirm the validator
+itself still passes a minimal fixture and fails one carrying the vendoring
+marker, one missing a documented key, and one with a leftover
+`values.base.yaml`.
+
 ## Rollback / recovery
 
 If Cilium reconciliation fails or degrades networking after adoption:
