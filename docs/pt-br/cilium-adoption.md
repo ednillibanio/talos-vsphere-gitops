@@ -74,6 +74,28 @@ com o release day-1 realmente sincronizado no lado do toolchain).
    nenhum repositorio ou script deve realizar outra instalacao imperativa do
    Cilium.
 
+## Propriedade do arquivo de valores
+
+`environments/<env>/helm/cilium/values.yaml` contem apenas os overrides
+proprios deste lab — as chaves em que o estado desejado diverge
+intencionalmente dos valores padrao do proprio chart do Cilium (por exemplo
+`k8sServiceHost`/`k8sServicePort`, `ingressController`, `gatewayAPI`,
+`encryption`, `ipam.mode`, `kubeProxyReplacement`, `cgroup`). Ele nao e, e nao
+deve voltar a ser, uma copia vendorizada do `values.yaml` padrao completo do
+chart: toda chave que este arquivo nao define cai de volta para o padrao
+embutido no proprio chart no momento da renderizacao, da mesma forma que o
+`helm upgrade --install` do day-1 e a renderizacao do Argo CD a resolvem.
+`scripts/validate-cilium-values-overrides.sh` verifica esse contrato de forma
+offline — que o arquivo ainda declara cada chave de override documentada, nao
+carrega o marcador de vendorizacao "DO NOT EDIT" gerado pelo chart, e nao tem
+um `values.base.yaml` residual ao lado — e renderiza o arquivo contra a
+versao fixada do chart com `helm template` quando o Helm consegue resolver
+esse chart a partir do registry (sem cluster ao vivo, sem credenciais).
+Execute `scripts/validate-cilium-values-overrides.test.sh` para confirmar que
+o proprio validador ainda passa em uma fixture minima e falha em uma que
+carrega o marcador de vendorizacao, uma sem uma chave documentada, e uma com
+um `values.base.yaml` residual.
+
 ## Rollback / recuperacao
 
 Se a reconciliacao do Cilium falhar ou degradar a rede apos a adocao:
