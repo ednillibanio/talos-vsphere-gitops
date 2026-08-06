@@ -83,6 +83,40 @@ The practical result of this iteration: the **Helm half** of an environment
 copy is now free, and the **Argo CD half** is five files with a known,
 documented reason.
 
+## Owner decision — ApplicationSet parked
+
+Decided 2026-08-06: **do not build the ApplicationSet yet.** Revisit when a
+real `prod` environment is actually on the table. The trigger is a second
+environment existing, not a date.
+
+An ApplicationSet is an Argo CD controller that *generates* Applications from a
+template plus a list, instead of storing one hand-written file per addon:
+
+```yaml
+kind: ApplicationSet
+spec:
+  generators:
+    - list:
+        elements:
+          - {env: lab,  addon: cilium}
+          - {env: prod, addon: cilium}
+  template:
+    spec:
+      sources:
+        - helm:
+            valueFiles:
+              - $values/environments/{{env}}/helm/{{addon}}/values.yaml
+```
+
+The `{{env}}` placeholder is the whole point. The path still resolves from the
+repository root — Argo CD's limitation does not disappear — but the environment
+name becomes a variable instead of literal text, so adding an environment
+becomes list entries rather than copied and edited files.
+
+Why it is parked: with only `lab` in existence, it trades four readable
+Applications for one templated file, adds indirection, and solves a cost that
+is not yet being paid. With a real second environment the arithmetic reverses.
+
 ## Independent review
 
 - Reviewer: pending
