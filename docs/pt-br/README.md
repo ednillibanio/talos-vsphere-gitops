@@ -32,6 +32,10 @@ apos o bootstrap do Kubernetes. Ele:
   execucao, inicializado de forma imperativa, em vez de instalar um novo;
   veja `docs/pt-br/cilium-adoption.md` para o contrato de
   prontidao/adocao/rollback e seu validador offline.
+- Todo `helm/<addon>/values.yaml` e um conjunto de overrides proprios, nunca
+  uma copia vendorizada dos defaults do chart; veja
+  `docs/pt-br/values-ownership.md` para o contrato, seus dois validadores
+  offline e como provar uma mudanca de valores com um render Helm antes/depois.
 
 ## Marcos (Milestones)
 
