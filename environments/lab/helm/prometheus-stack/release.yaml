@@ -6,5 +6,5 @@ namespaceLabelWarn: privileged
 skipDryRunOnFirstInstall: true
 chart: oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack
 version: 82.13.6
-valuesFile: environments/lab/helm/prometheus-stack/values.yaml
+valuesFile: values.yaml
 validationSelector: app.kubernetes.io/instance=kube-prometheus-stack

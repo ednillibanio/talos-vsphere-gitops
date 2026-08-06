@@ -37,6 +37,39 @@ override pequenos, escritos a mao.
   seletor de validacao e os rotulos de Pod Security do namespace. Identidade e
   alvo, nao ajuste fino.
 
+O `release.yaml` referencia seu arquivo de valores **relativo ao proprio
+diretorio**:
+
+```yaml
+valuesFile: values.yaml
+```
+
+Nunca `environments/<env>/helm/<addon>/values.yaml`. Um arquivo que repete a
+propria localizacao embute o nome do ambiente no conteudo, e e isso que faz
+`cp -r environments/lab environments/prod` gerar release files quebrados. Os
+dois consumidores de day-1 resolvem a forma relativa nativamente.
+
+## Copiando um ambiente
+
+A metade Helm sai de graca:
+
+```bash
+cp -r environments/lab environments/prod
+./scripts/validate-values-overrides.sh environments/prod/helm
+```
+
+A metade do Argo CD nao, e isso e uma limitacao real, nao um descuido. O Argo
+CD resolve `valueFiles` sob uma fonte `$ref` a partir da **raiz do repositorio**
+de valores, sem semantica de "relativo a este manifesto", entao
+`$values/environments/<env>/helm/<addon>/values.yaml` nao pode ser encurtado.
+O `targetRevision` e o `path` do root app sao acoplados ao ambiente pelo
+contrato deliberado de branch por ambiente descrito em
+`docs/pt-br/branch-revision-promotion.md`.
+
+Ou seja, um ambiente novo ainda exige editar quatro Applications mais o root
+app. Tornar isso automatico exige um ApplicationSet com generator — um modelo
+de gerenciamento diferente, nao uma mudanca de caminho.
+
 ## Verificando
 
 Dois validadores offline garantem isso. Nenhum contata cluster nem usa

@@ -36,6 +36,38 @@ hand-written override files.
   validation selector, and namespace Pod Security labels. Identity and
   targeting, not tuning.
 
+`release.yaml` references its values file **relative to its own directory**:
+
+```yaml
+valuesFile: values.yaml
+```
+
+Never `environments/<env>/helm/<addon>/values.yaml`. A file restating its own
+location embeds the environment name in its content, which is what makes
+`cp -r environments/lab environments/prod` produce broken release files. Both
+day-1 consumers resolve the relative form natively.
+
+## Copying an environment
+
+The Helm half is free:
+
+```bash
+cp -r environments/lab environments/prod
+./scripts/validate-values-overrides.sh environments/prod/helm
+```
+
+The Argo CD half is not, and this is a real limitation rather than an
+oversight. Argo CD resolves `valueFiles` under a `$ref` source from the
+values **repository root**, with no "relative to this manifest" semantics, so
+`$values/environments/<env>/helm/<addon>/values.yaml` cannot be shortened.
+`targetRevision` and the root app's `path` are environment-coupled by the
+deliberate per-environment branch contract in
+`docs/en/branch-revision-promotion.md`.
+
+So a new environment still means editing four Applications plus the root app.
+Making that automatic requires an ApplicationSet with a generator — a
+different management model, not a path change.
+
 ## Verifying
 
 Two offline validators enforce this. Both contact no cluster and use no
