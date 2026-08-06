@@ -30,6 +30,10 @@ platform services, and workloads after Kubernetes bootstrap. It:
   bootstrapped Cilium Helm release rather than installing a new one; see
   `docs/en/cilium-adoption.md` for the readiness/adoption/rollback contract
   and its offline validator.
+- Every `helm/<addon>/values.yaml` is an owned override set, never a vendored
+  copy of the chart's defaults; see `docs/en/values-ownership.md` for the
+  contract, its two offline validators, and how to prove a values change with
+  a before/after Helm render.
 
 ## Milestones
 
