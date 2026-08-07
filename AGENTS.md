@@ -60,10 +60,18 @@ output into it:
 ./scripts/validate-argocd-revisions.sh          # any Application or branch change
 ```
 
-Known hole: `longhorn`'s pinned chart is not resolvable from the registries the
-validator uses, so it reports that limitation instead of rendering. A green run
-does not mean Longhorn's values were proven. Render it by hand before changing
-them.
+Read the notes, not just the exit code. Addons pinned by classic Helm repo
+alias (`cert-manager` via `jetstack/`, `longhorn` via `longhorn/`) render only
+if that alias is already registered in your local Helm config. When it is not,
+the validator prints `note: ... not locally resolvable` and still exits zero —
+so a green run can silently skip an addon. Register the aliases first:
+
+```bash
+helm repo add jetstack https://charts.jetstack.io
+helm repo add longhorn https://charts.longhorn.io
+```
+
+Then confirm the run reports `OK:` for all five addons, not four.
 
 For a values change, a passing validator is not enough on its own — prove the
 effect with a before/after `helm template` render, as
