@@ -2,6 +2,11 @@
 
 Este e o ponto de entrada em Portugues (Brasil) para a documentacao GitOps.
 
+**Operando o day-2 — comece aqui:** o `day2-operations.md` cobre a execucao do
+fluxo day-2, o que muda entre os destinos container e vSphere, os limites
+medidos em cada um, e os comandos exatos para acessar Argo CD, Prometheus,
+Grafana e Alertmanager.
+
 ## Objetivo do Repositorio
 
 Este repositorio e o dono do estado desejado do Argo CD, da politica de
