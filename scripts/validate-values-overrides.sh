@@ -9,9 +9,16 @@ set -euo pipefail
 # does not carry a chart-generated vendoring marker, and does not sit next to
 # a leftover values.base.yaml. When `helm` is installed it also pulls the
 # chart pinned in release.yaml (network access, no cluster/credentials) and
-# renders it with the values file. A chart that cannot be pulled/resolved is
-# reported as a limitation, not a failure. A resolved chart that fails to
-# render with the supplied values is a real validation failure.
+# renders it with the values file.
+#
+# A chart pinned by classic repo alias (`longhorn/longhorn`) is resolved by
+# reading the matching Argo CD Application's repoURL and passing it to
+# `helm pull --repo`, so the check does not depend on which aliases happen to
+# be registered in the caller's Helm config and never mutates it.
+#
+# A pinned chart that cannot be resolved or rendered is a failure. It used to
+# be reported as a note while the script still exited zero, which let a green
+# run silently skip an addon.
 #
 # This is the addon-agnostic counterpart to
 # validate-cilium-values-overrides.sh, which additionally enforces Cilium's
@@ -106,6 +113,27 @@ fi
 
 # --- pinned-chart render, per addon -----------------------------------------
 
+# Argo CD Applications sit beside the Helm root and carry the real chart
+# repository URL for charts that release.yaml pins by alias.
+apps_dir="$(dirname "$helm_root")/argocd/apps"
+
+# Print the repoURL of the source that serves $2 in Application file $1.
+# In these manifests the chart source is a repoURL line followed by its chart
+# line, so the last repoURL seen before the matching chart is the right one.
+chart_repo_url() {
+  local app_file="$1" chart_name="$2"
+  [[ -f "$app_file" ]] || return 1
+  awk -v want="$chart_name" '
+    /^[[:space:]]*-?[[:space:]]*repoURL:[[:space:]]*/ {
+      url = $0; sub(/^[^:]*:[[:space:]]*/, "", url)
+    }
+    /^[[:space:]]*chart:[[:space:]]*/ {
+      c = $0; sub(/^[[:space:]]*chart:[[:space:]]*/, "", c)
+      if (c == want && url != "") { print url; exit }
+    }
+  ' "$app_file"
+}
+
 for addon_dir in "$helm_root"/*/; do
   [[ -d "$addon_dir" ]] || continue
   addon="$(basename "$addon_dir")"
@@ -122,24 +150,39 @@ for addon_dir in "$helm_root"/*/; do
   namespace="$(sed -n 's/^namespace:[[:space:]]*//p' "$release_file" | head -n1)"
 
   if [[ -z "$chart" || -z "$version" ]]; then
-    echo "note: $addon: could not parse chart/version from $release_file; skipping render" >&2
+    echo "FAIL: $addon: could not parse chart/version from $release_file" >&2
+    fail=1
     continue
+  fi
+
+  # A chart pinned as alias/name resolves through the Application's repoURL
+  # when one is available, so no Helm repo alias has to be registered locally.
+  pull_args=("$chart")
+  if [[ "$chart" != *"://"* && "$chart" == */* ]]; then
+    chart_name="${chart#*/}"
+    repo_url="$(chart_repo_url "$apps_dir/$addon.yaml" "$chart_name" || true)"
+    if [[ -n "$repo_url" ]]; then
+      pull_args=("$chart_name" --repo "$repo_url")
+    fi
   fi
 
   chart_dir="$(mktemp -d)"
   pull_out="$(mktemp)"
   render_out="$(mktemp)"
 
-  if ! helm pull "$chart" --version "$version" --destination "$chart_dir" \
+  if ! helm pull "${pull_args[@]}" --version "$version" --destination "$chart_dir" \
     >"$pull_out" 2>&1; then
-    echo "note: $addon: pinned chart $chart:$version was not locally resolvable; reporting limitation instead of substituting a live-cluster check" >&2
+    echo "FAIL: $addon: could not resolve pinned chart $chart:$version" >&2
+    cat "$pull_out" >&2
+    fail=1
     rm -rf "$chart_dir"; rm -f "$pull_out" "$render_out"
     continue
   fi
 
   chart_archive="$(find "$chart_dir" -maxdepth 1 -name '*.tgz' | head -n1)"
   if [[ -z "$chart_archive" ]]; then
-    echo "note: $addon: pinned chart was not locally resolvable (helm pull produced no archive)" >&2
+    echo "FAIL: $addon: helm pull produced no archive for $chart:$version" >&2
+    fail=1
     rm -rf "$chart_dir"; rm -f "$pull_out" "$render_out"
     continue
   fi

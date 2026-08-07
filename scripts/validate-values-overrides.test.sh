@@ -10,10 +10,15 @@ set -euo pipefail
 # pass, which would otherwise let the check "succeed" while validating
 # nothing.
 #
-# Every fixture omits release.yaml (except the missing-values one, whose
-# release file is what proves the missing values file is detected), so no
-# case here reaches the network. The real repository render is exercised by
-# running the validator directly.
+# Also confirms that a pinned chart which cannot be resolved fails the run
+# rather than printing a note and exiting zero, which previously let a green
+# run silently skip an addon.
+#
+# Fixtures omit release.yaml except for two: missing-values, whose release
+# file is what proves the missing values file is detected, and
+# unresolvable-chart, which pins an alias that is never registered so helm
+# rejects it locally. Neither reaches the network. The real repository render
+# is exercised by running the validator directly.
 #
 # Usage: validate-values-overrides.test.sh
 
@@ -91,6 +96,25 @@ else
     echo "$out"
     status=1
   fi
+fi
+
+echo "test: unresolvable pinned chart should fail, not pass with a note"
+if command -v helm >/dev/null 2>&1; then
+  if out="$("$validator" "$fixtures/unresolvable-chart" 2>&1)"; then
+    echo "  FAIL: expected an unresolvable pinned chart to fail the run"
+    echo "$out"
+    status=1
+  else
+    if grep -q 'could not resolve pinned chart' <<<"$out"; then
+      echo "  ok (unresolvable chart rejected)"
+    else
+      echo "  FAIL: expected a chart-resolution failure message"
+      echo "$out"
+      status=1
+    fi
+  fi
+else
+  echo "  skipped (helm not installed)"
 fi
 
 echo "test: nonexistent helm root should error"
