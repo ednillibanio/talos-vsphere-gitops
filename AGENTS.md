@@ -60,18 +60,15 @@ output into it:
 ./scripts/validate-argocd-revisions.sh          # any Application or branch change
 ```
 
-Read the notes, not just the exit code. Addons pinned by classic Helm repo
-alias (`cert-manager` via `jetstack/`, `longhorn` via `longhorn/`) render only
-if that alias is already registered in your local Helm config. When it is not,
-the validator prints `note: ... not locally resolvable` and still exits zero —
-so a green run can silently skip an addon. Register the aliases first:
+A green run means every addon was actually rendered. Charts pinned by repo
+alias (`longhorn/longhorn`) are resolved through the matching Application's
+`repoURL`, so no `helm repo add` is needed and your Helm config is never
+modified. A chart that cannot be resolved fails the run instead of printing a
+note — keep it that way. A gate that degrades quietly is worse than no gate,
+because it still reports success.
 
-```bash
-helm repo add jetstack https://charts.jetstack.io
-helm repo add longhorn https://charts.longhorn.io
-```
-
-Then confirm the run reports `OK:` for all five addons, not four.
+The validators need network access to pull the pinned charts. They need no
+cluster and no credentials.
 
 For a values change, a passing validator is not enough on its own — prove the
 effect with a before/after `helm template` render, as
