@@ -8,7 +8,13 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: oci://quay.io/cilium/charts
+    # No oci:// scheme here. With the prefix, Argo CD treats the value as the
+    # complete OCI artifact reference and never appends `chart`, requesting
+    # /v2/cilium/charts/manifests/<version> instead of
+    # /v2/cilium/charts/cilium/manifests/<version>. quay.io answers 401 rather
+    # than 404 for a path that does not exist, so the failure reads as an auth
+    # problem and sends you looking for credentials that were never needed.
+    - repoURL: quay.io/cilium/charts
       chart: cilium
       targetRevision: 1.19.1
       helm:
