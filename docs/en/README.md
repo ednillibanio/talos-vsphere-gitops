@@ -2,6 +2,11 @@
 
 This is the English entrypoint for GitOps documentation.
 
+**Operating day-2 — start here:** `day2-operations.md` covers running the
+day-2 flow, what differs between the container and vSphere targets, the limits
+measured on each, and the exact commands to reach Argo CD, Prometheus, Grafana
+and Alertmanager.
+
 ## Repository Purpose
 
 This repository owns Argo CD desired state, environment revision policy,
