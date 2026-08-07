@@ -116,13 +116,32 @@ destino, porque tunela pelo API server. No perfil container ele e a unica
 opcao; no vSphere ele e o caminho de depuracao, enquanto Ingress ou
 LoadBalancer e o caminho normal.
 
-Cada comando segura o terminal. Use uma aba por servico, ou acrescente `&`.
-
 Defina isto primeiro, em cada shell:
 
 ```bash
 export KUBECONFIG=~/.local/state/talos-toolchain/local-clusters/talos-lab/kubeconfig
 ```
+
+### Como o port-forward se comporta
+
+Um forward e um processo, nao configuracao do cluster. Ele existe apenas
+enquanto o comando roda, e a porta some no instante em que voce o encerra. Um
+`curl` no mesmo terminal depois que o comando retornou vai sempre falhar com
+`Failed to connect ... Couldn't connect to server`.
+
+Ou mantenha o forward em uma aba propria e use o servico de outra, ou coloque
+em segundo plano e encerre explicitamente:
+
+```bash
+kubectl -n argocd port-forward svc/argocd-server 18080:443 >/dev/null 2>&1 &
+sleep 5
+curl -k -o /dev/null -w "argocd: HTTP %{http_code}\n" https://127.0.0.1:18080/
+
+pkill -f "port-forward svc/argocd-server"    # quando terminar
+```
+
+O navegador precisa do forward rodando durante toda a sessao. Avisos de
+certificado autoassinado sao esperados — prossiga por cima deles.
 
 ### Argo CD
 

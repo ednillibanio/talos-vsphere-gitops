@@ -114,13 +114,32 @@ it tunnels through the API server. On the container profile it is the only
 option; on vSphere it is the debugging path while Ingress or LoadBalancer is
 the normal one.
 
-Each command holds the terminal. Use one tab per service, or append `&`.
-
 Set this first, in every shell:
 
 ```bash
 export KUBECONFIG=~/.local/state/talos-toolchain/local-clusters/talos-lab/kubeconfig
 ```
+
+### How port-forward behaves
+
+A forward is a process, not cluster configuration. It exists only while the
+command runs, and the port disappears the moment you stop it. `curl` in the
+same terminal after the command returned will always fail with
+`Failed to connect ... Couldn't connect to server`.
+
+Either keep it in its own tab and use the service from another, or background
+it and stop it explicitly:
+
+```bash
+kubectl -n argocd port-forward svc/argocd-server 18080:443 >/dev/null 2>&1 &
+sleep 5
+curl -k -o /dev/null -w "argocd: HTTP %{http_code}\n" https://127.0.0.1:18080/
+
+pkill -f "port-forward svc/argocd-server"    # when you are done
+```
+
+A browser needs the forward running for the whole session. Self-signed
+certificate warnings are expected — proceed past them.
 
 ### Argo CD
 
