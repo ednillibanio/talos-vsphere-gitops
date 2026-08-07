@@ -27,6 +27,26 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
+  # The Cilium chart mints these two Secrets with genCA/genSignedCert, so every
+  # render produces different bytes and the live objects never match the target
+  # state. Without this the Application stays OutOfSync forever even when the
+  # sync itself reports Succeeded -- and worse, selfHeal rewrites the CA on each
+  # comparison, which would rotate Hubble's serving certificate continuously.
+  # Ignore only the payload of these two named Secrets; their creation,
+  # deletion, and metadata stay under Argo CD's control.
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: cilium-ca
+      namespace: kube-system
+      jsonPointers:
+        - /data
+    - group: ""
+      kind: Secret
+      name: hubble-server-certs
+      namespace: kube-system
+      jsonPointers:
+        - /data
   syncPolicy:
     automated:
       prune: true
