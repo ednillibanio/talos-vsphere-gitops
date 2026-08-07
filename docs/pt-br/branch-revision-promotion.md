@@ -2,12 +2,26 @@
 
 ## Contrato
 
-Cada diretorio de ambiente em `environments/` seleciona sua propria revisao
-Git, e essa revisao fica registrada em todo source do Argo CD que aponta de
-volta para este repositorio:
+Um diretorio de ambiente em `environments/` se chama `<estagio>[-<alvo>]`. O
+**estagio** seleciona a revisao Git; o **alvo**, opcional, nomeia a
+infraestrutura em que o mesmo estado desejado roda:
 
 - `environments/lab/**` -> `targetRevision: lab`
+- `environments/lab-container/**` -> `targetRevision: lab`
+- `environments/lab-vsphere/**` -> `targetRevision: lab`
 - `environments/main/**` -> `targetRevision: main`
+
+Estagio e um conceito de promocao: `lab` e promovido para `main`. Alvo nao e.
+Container e vSphere sao o **mesmo estagio em infraestruturas diferentes** — os
+mesmos addons, nas mesmas versoes, dimensionados para o que a infraestrutura
+consegue de fato rodar. Eles compartilham uma branch de proposito: branches
+separadas fariam os dois divergirem, e cada correcao de addon teria de ser
+aplicada duas vezes, a mao.
+
+O que legitimamente muda entre alvos e capacidade e topologia, nao intencao. O
+alvo container roda em 1 control-plane + 1 worker, entao nao consegue agendar
+contagens de replica ou regras de anti-affinity escritas para um cluster real;
+veja o `day2-operations.md` para os limites medidos.
 
 Isso vale para a `Application` raiz (`environments/<env>/argocd/root-app.yaml`)
 e para cada `Application` filha em `environments/<env>/argocd/apps/*.yaml`

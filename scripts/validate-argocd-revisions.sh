@@ -4,10 +4,24 @@ set -euo pipefail
 # validate-argocd-revisions.sh
 #
 # Offline check that every Argo CD Application source pointing at this
-# GitOps repository resolves the same Git revision as the environment
-# directory it lives under (environments/lab -> lab, environments/main ->
-# main). Detects mixed lab/main revisions without contacting a live Argo CD
-# or Kubernetes cluster.
+# GitOps repository resolves the Git revision of its promotion stage.
+#
+# An environment directory is named <stage>[-<target>]. The stage is the part
+# before the first dash and is what pins the branch; the optional target names
+# the infrastructure the same desired state runs on:
+#
+#   environments/lab           -> lab
+#   environments/lab-container -> lab
+#   environments/lab-vsphere   -> lab
+#   environments/main          -> main
+#
+# Stage is a promotion concept: lab is promoted to main. Target is not.
+# Container and vSphere are the same stage on different infrastructure, so
+# they share a branch deliberately -- putting them on separate branches would
+# make them diverge and force every addon change to be applied twice.
+#
+# Detects mixed revisions without contacting a live Argo CD or Kubernetes
+# cluster.
 #
 # Usage: validate-argocd-revisions.sh [environments-dir]
 #
@@ -43,6 +57,10 @@ fail=0
 for env_dir in "$root"/*/; do
   [[ -d "$env_dir" ]] || continue
   env_name="$(basename "$env_dir")"
+  # The promotion stage is the directory name up to the first dash. A name
+  # with no dash is its own stage, which keeps environments/lab and
+  # environments/main behaving exactly as before.
+  stage_name="${env_name%%-*}"
   argocd_dir="${env_dir}argocd"
   [[ -d "$argocd_dir" ]] || continue
 
@@ -56,8 +74,8 @@ for env_dir in "$root"/*/; do
       if [[ "$line" =~ targetRevision:[[:space:]]*(.+)[[:space:]]*$ ]]; then
         rev="${BASH_REMATCH[1]}"
         if [[ -n "$repo" && "$repo" =~ $self_repo_pattern ]]; then
-          if [[ "$rev" != "$env_name" ]]; then
-            echo "mismatch: $file -> repoURL=$repo targetRevision=$rev (expected $env_name)" >&2
+          if [[ "$rev" != "$stage_name" ]]; then
+            echo "mismatch: $file -> repoURL=$repo targetRevision=$rev (expected $stage_name, the stage of environment $env_name)" >&2
             fail=1
           fi
         fi

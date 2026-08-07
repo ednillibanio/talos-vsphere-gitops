@@ -22,6 +22,15 @@ else
   status=1
 fi
 
+echo "test: target-suffixed environment should resolve to its stage branch"
+if out="$("$validator" "$dir/testdata/targets/environments" 2>&1)"; then
+  echo "  ok (environments/lab-container accepts targetRevision: lab)"
+else
+  echo "  FAIL: expected lab-container to pin the lab branch, not a lab-container branch"
+  echo "$out"
+  status=1
+fi
+
 echo "test: mixed fixture should fail"
 if out="$("$validator" "$dir/testdata/mixed/environments" 2>&1)"; then
   echo "  FAIL: expected mixed fixture to fail"
