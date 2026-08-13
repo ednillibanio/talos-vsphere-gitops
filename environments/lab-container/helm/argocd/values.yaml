@@ -1,0 +1,38 @@
+# Argo CD values for the "lab" stage, "container" target (1 control-plane +
+# 1 worker, see docs/en/environments-and-targets.md).
+#
+# redis-ha wants 3 replicas with podAntiAffinity on kubernetes.io/hostname
+# (see environments/lab/helm/argocd/values.yaml). On this topology that is
+# permanently unschedulable: replicas=3 ready=1, Pending forever. Disabling
+# redis-ha here falls back to the chart's single non-HA redis, which schedules
+# fine on one worker. Measured in iteration 14
+# (docs/planning/execution/iteration-014.md).
+redis-ha:
+  enabled: false
+
+controller:
+  replicas: 1
+
+# server/repoServer/applicationSet at 2 replicas each spread the addon set's
+# CPU thin enough on 4 vCPUs that liveness probes timed out under load,
+# producing a CrashLoopBackOff/Running alternation (each exit 0 on SIGTERM,
+# not a real crash). 1 replica each stopped the churn. Measured in
+# iteration 14.
+server:
+  replicas: 1
+
+repoServer:
+  replicas: 1
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+  readinessProbe:
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+
+applicationSet:
+  replicas: 1

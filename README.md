@@ -50,7 +50,24 @@ opening a pull request.
 
 ## Adding an environment
 
-The Helm half is a copy with no edits:
+An environment directory is named `<stage>[-<target>]` — `lab-container` and
+`lab-vsphere` are the same promotion stage (`lab`) on different
+infrastructure, so they share a branch; `main` is a different stage entirely.
+See `docs/en/environments-and-targets.md` for the full model.
+
+Adding a **target** to an existing stage, when only capacity/sizing differs
+(the common case — see `environments/lab-container/helm/argocd/` for the
+working example), touches only that addon's `helm/<addon>/` directory, not
+`argocd/`:
+
+```bash
+mkdir -p environments/lab-container/helm/argocd
+cp environments/lab/helm/argocd/release.yaml environments/lab-container/helm/argocd/
+# hand-edit environments/lab-container/helm/argocd/values.yaml
+./scripts/validate-values-overrides.sh environments/lab-container/helm
+```
+
+Adding a **stage** (promotion) is a full copy — the Helm half is free:
 
 ```bash
 cp -r environments/lab environments/prod

@@ -2,12 +2,25 @@
 
 ## Contract
 
-Every environment directory under `environments/` selects its own Git
-revision, and that revision is checked into every Argo CD source that points
-back at this repository:
+An environment directory under `environments/` is named `<stage>[-<target>]`.
+The **stage** selects the Git revision; the optional **target** names the
+infrastructure the same desired state runs on:
 
 - `environments/lab/**` -> `targetRevision: lab`
+- `environments/lab-container/**` -> `targetRevision: lab`
+- `environments/lab-vsphere/**` -> `targetRevision: lab`
 - `environments/main/**` -> `targetRevision: main`
+
+Stage is a promotion concept: `lab` is promoted to `main`. Target is not.
+Container and vSphere are the **same stage on different infrastructure** — the
+same addons at the same versions, sized for what the infrastructure can
+actually run. They share a branch deliberately: separate branches would make
+them diverge, and every addon fix would have to be applied twice by hand.
+
+What legitimately differs between targets is capacity and topology, not intent.
+The container target runs on 1 control-plane + 1 worker, so it cannot schedule
+replica counts or anti-affinity rules written for a real cluster; see
+`day2-operations.md` for the measured limits.
 
 This applies to the root `Application` (`environments/<env>/argocd/root-app.yaml`)
 and to every child `Application` in `environments/<env>/argocd/apps/*.yaml`

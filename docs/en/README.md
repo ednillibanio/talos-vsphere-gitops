@@ -2,7 +2,12 @@
 
 This is the English entrypoint for GitOps documentation.
 
-**Operating day-2 — start here:** `day2-operations.md` covers running the
+**What an environment directory means — start here:**
+`environments-and-targets.md` explains the `<stage>[-<target>]` naming
+contract (why `lab-container` and `lab-vsphere` share a branch, why `main`
+does not), how Argo CD resolves it, and how to add a stage or a target.
+
+**Operating day-2:** `day2-operations.md` covers running the
 day-2 flow, what differs between the container and vSphere targets, the limits
 measured on each, and the exact commands to reach Argo CD, Prometheus, Grafana
 and Alertmanager.
@@ -21,6 +26,9 @@ platform services, and workloads after Kubernetes bootstrap. It:
 - `environments/lab/argocd/apps/*.yaml`
 - `environments/lab/helm/<addon>/release.yaml`
 - `environments/lab/helm/<addon>/values.yaml`
+- `environments/lab-container/helm/argocd/{release.yaml,values.yaml}` —
+  container-target sizing only; everything else is shared from
+  `environments/lab`. See `environments-and-targets.md`.
 
 ## Operational Notes
 
