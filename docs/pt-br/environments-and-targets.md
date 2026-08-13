@@ -78,7 +78,9 @@ de `Application` que aponta para este repositorio:
   filhas) — o diretorio de onde ler. Este e o estagio **e** o alvo juntos,
   porque e o caminho completo `environments/<estagio>[-<alvo>]/...`.
 
-Concretamente, em `environments/lab-container/argocd/apps/cilium.yaml`:
+Concretamente, em `environments/lab/argocd/apps/cilium.yaml` — o arquivo que
+os dois alvos do estagio `lab` de fato usam, ja que a config do proprio
+Cilium nao varia por alvo hoje (ver a tabela abaixo):
 
 ```yaml
 sources:
@@ -87,9 +89,9 @@ sources:
     targetRevision: 1.19.1                 # versao do chart, nao relacionada ao estagio
     helm:
       valueFiles:
-        - $values/environments/lab-container/helm/cilium/values.yaml
+        - $values/environments/lab/helm/cilium/values.yaml
   - repoURL: https://github.com/ednillibanio/talos-vsphere-gitops.git
-    targetRevision: lab                    # o ESTAGIO, nao "lab-container"
+    targetRevision: lab                    # o ESTAGIO
     ref: values
 ```
 
@@ -98,6 +100,12 @@ motivos diferentes: o primeiro fixa a versao do chart externo, o segundo fixa
 o branch deste repositorio. So o segundo e governado pelo estagio. Essa e uma
 leitura equivocada comum — ver `branch-revision-promotion.md` se este arquivo
 estiver sendo editado a mao.
+
+Se algum dia um alvo precisar de sua propria config de Cilium, esse mesmo
+arquivo iria para `environments/lab-<alvo>/argocd/apps/cilium.yaml` com seu
+caminho `$values` atualizado da mesma forma — `targetRevision: lab` continua
+intocado de qualquer forma, porque quem mudou nao foi o alvo, so de onde os
+valores sao lidos. Nenhum ambiente precisa disso hoje; ver a tabela abaixo.
 
 ## O que legitimamente varia por alvo, e o que nao varia
 

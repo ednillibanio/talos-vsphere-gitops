@@ -77,7 +77,9 @@ that points at this repository:
   directory to read from. This is the stage **and** target together, because
   it is the full `environments/<stage>[-<target>]/...` path.
 
-Concretely, in `environments/lab-container/argocd/apps/cilium.yaml`:
+Concretely, in `environments/lab/argocd/apps/cilium.yaml` — the file both
+targets of the `lab` stage actually use, since Cilium's own config does not
+vary by target today (see the table below):
 
 ```yaml
 sources:
@@ -86,9 +88,9 @@ sources:
     targetRevision: 1.19.1                 # chart version, unrelated to stage
     helm:
       valueFiles:
-        - $values/environments/lab-container/helm/cilium/values.yaml
+        - $values/environments/lab/helm/cilium/values.yaml
   - repoURL: https://github.com/ednillibanio/talos-vsphere-gitops.git
-    targetRevision: lab                    # the STAGE, not "lab-container"
+    targetRevision: lab                    # the STAGE
     ref: values
 ```
 
@@ -97,6 +99,12 @@ different reasons: the first pins the external chart's version, the second
 pins this repository's branch. Only the second is stage-governed. This is a
 common misreading — see `branch-revision-promotion.md` if this file is being
 edited by hand.
+
+If a target ever needs its own Cilium config, that same file would move to
+`environments/lab-<target>/argocd/apps/cilium.yaml` with its `$values` path
+updated the same way — `targetRevision: lab` stays untouched either way,
+since it is not the target that changed, only where the values are read
+from. No environment needs this today; see the table below.
 
 ## What legitimately varies by target, and what does not
 
