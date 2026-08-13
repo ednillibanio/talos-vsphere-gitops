@@ -5,8 +5,10 @@ set -euo pipefail
 #
 # Regression check for validate-cilium-adoption-readiness.sh: confirms it
 # passes on a fixture with a complete, fully-automated Cilium adoption
-# contract, and fails on fixtures missing the referenced values file, with a
-# non-automated sync policy, and with a mismatched environment revision.
+# contract, passes on a target-suffixed environment (lab-container) that
+# pins its stage's branch rather than a branch of its own, and fails on
+# fixtures missing the referenced values file, with a non-automated sync
+# policy, and with a mismatched environment revision.
 #
 # Usage: validate-cilium-adoption-readiness.test.sh
 
@@ -43,6 +45,7 @@ assert_fail() {
 }
 
 assert_pass "valid fixture" "valid"
+assert_pass "target-suffixed environment resolves to its stage branch" "target-suffix"
 assert_fail "missing values file fixture" "missing-values-file" "referenced values file not found"
 assert_fail "non-automated sync policy fixture" "not-automated" "adoption sync policy not fully automated"
 assert_fail "mismatched environment revision fixture" "wrong-revision" "expected lab"

@@ -7,8 +7,9 @@ set -euo pipefail
 # declares a self-consistent, fully-automated adoption contract: required
 # Helm release identity fields are present, the referenced values file
 # exists in this repository, the environment revision on the values-ref
-# source matches the environment directory (same lab/main contract as
-# validate-argocd-revisions.sh), and the sync policy is fully automated
+# source matches the environment's promotion stage -- the directory name up to
+# the first dash, same <stage>[-<target>] contract as
+# validate-argocd-revisions.sh -- and the sync policy is fully automated
 # (prune + selfHeal), so Argo CD actually takes over reconciliation of the
 # already-running day-1 Cilium release instead of leaving it half-adopted.
 # Contacts no live Argo CD, Kubernetes, or Helm endpoint.
@@ -86,6 +87,10 @@ parse_cilium_app() {
 for env_dir in "$root"/*/; do
   [[ -d "$env_dir" ]] || continue
   env_name="$(basename "$env_dir")"
+  # The promotion stage is the directory name up to the first dash -- same
+  # rule as validate-argocd-revisions.sh, so lab-container and lab-vsphere
+  # both pin the lab branch instead of demanding a branch of their own.
+  stage_name="${env_name%%-*}"
   app_file="${env_dir}argocd/apps/cilium.yaml"
   [[ -f "$app_file" ]] || continue
   checked=$((checked + 1))
@@ -117,8 +122,8 @@ for env_dir in "$root"/*/; do
     echo "readiness: $app_file -> missing self-repo values-ref source" >&2
     fail=1
   elif [[ "$VALUES_REPO_URL" =~ $self_repo_pattern ]]; then
-    if [[ "$VALUES_REPO_REV" != "$env_name" ]]; then
-      echo "readiness: $app_file -> values-ref targetRevision=$VALUES_REPO_REV (expected $env_name)" >&2
+    if [[ "$VALUES_REPO_REV" != "$stage_name" ]]; then
+      echo "readiness: $app_file -> values-ref targetRevision=$VALUES_REPO_REV (expected $stage_name, the stage of environment $env_name)" >&2
       fail=1
     fi
   else
