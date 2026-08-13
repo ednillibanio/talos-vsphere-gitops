@@ -1,0 +1,81 @@
+# Owned lab overrides for the Cilium Helm chart (oci://quay.io/cilium/charts/cilium, version 1.19.1).
+#
+# This file intentionally does NOT vendor the chart's full default values
+# tree. It lists only the keys where the lab environment's desired state
+# diverges from the chart's own defaults; every other key falls back to the
+# chart's built-in defaults at render time. See
+# docs/en/cilium-adoption.md and docs/pt-br/cilium-adoption.md for the
+# adoption contract this file participates in, and
+# scripts/validate-cilium-adoption-readiness.sh /
+# scripts/cilium-values-overrides.test.sh for the offline checks that keep
+# this file honest.
+
+# -- Kubernetes API endpoint reached directly (no kube-proxy) instead of via
+# the in-cluster "auto" ConfigMap lookup, matching this lab's control-plane
+# access path.
+k8sServiceHost: "localhost"
+k8sServicePort: "7445"
+
+securityContext:
+  capabilities:
+    # -- Same as chart default minus SYS_MODULE/SYSLOG: this lab never needs
+    # cilium-agent to load kernel modules or read dmesg.
+    ciliumAgent:
+      - CHOWN
+      - KILL
+      - NET_ADMIN
+      - NET_RAW
+      - IPC_LOCK
+      - SYS_ADMIN
+      - SYS_RESOURCE
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    # -- Same as chart default minus SYS_MODULE, matching ciliumAgent above.
+    cleanCiliumState:
+      - NET_ADMIN
+      - SYS_ADMIN
+      - SYS_RESOURCE
+
+ingressController:
+  # -- Enable the Cilium ingress controller and make it the cluster default,
+  # since this lab has no other ingress controller installed.
+  enabled: true
+  default: true
+  # -- Shared load balancer instead of one per Ingress, to conserve lab IPs.
+  loadbalancerMode: shared
+
+gatewayAPI:
+  # -- Enable Gateway API support with HTTP/2 (ALPN) and appProtocol
+  # selection for services that declare it.
+  enabled: true
+  enableAppProtocol: true
+  enableAlpn: true
+
+encryption:
+  # -- Encrypt pod-to-pod traffic with WireGuard (not IPsec), including pure
+  # node-to-node traffic, for this lab's transparent-encryption requirement.
+  enabled: true
+  type: wireguard
+  nodeEncryption: true
+  strictMode:
+    cidr: "0.0.0.0/0"
+    egress:
+      cidr: "0.0.0.0/0"
+
+ipam:
+  # -- Kubernetes-managed IPAM instead of the chart's cluster-pool default,
+  # matching this lab's cluster CIDR allocation.
+  mode: "kubernetes"
+
+# -- Replace kube-proxy entirely; this lab relies on Cilium's replacement
+# instead of running kube-proxy.
+kubeProxyReplacement: "true"
+
+cgroup:
+  autoMount:
+    # -- Disabled: this lab's hosts already mount cgroup2 at hostRoot below,
+    # so the chart's auto-mount init container is unnecessary.
+    enabled: false
+  hostRoot: /sys/fs/cgroup

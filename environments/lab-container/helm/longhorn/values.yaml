@@ -1,0 +1,9 @@
+# Longhorn values for Talos lab cluster.
+# Keep this minimal first; evolve with backup classes, recurring jobs, and policies.
+
+defaultSettings:
+  defaultDataPath: /var/lib/longhorn
+  createDefaultDiskLabeledNodes: true
+
+persistence:
+  defaultClassReplicaCount: 2

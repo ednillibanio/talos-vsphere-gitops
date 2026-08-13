@@ -1,0 +1,22 @@
+# Owned lab overrides for the cert-manager Helm chart (jetstack/cert-manager, version 1.20.0).
+#
+# This file intentionally does NOT vendor the chart's full default values
+# tree. It lists only the keys where the lab environment's desired state
+# diverges from the chart's own defaults; every other key falls back to the
+# chart's built-in defaults at render time. This mirrors the treatment the
+# Cilium values file already received.
+
+# -- Install the cert-manager CRDs as part of the Helm release rather than
+# applying them out of band. Without this the chart renders no CRDs and every
+# Certificate/Issuer resource fails to apply.
+#
+# Note: the chart marks installCRDs as deprecated in favour of crds.enabled
+# and crds.keep. Both keys are kept here because that is what the previous
+# vendored file set, and the two are not interchangeable at render time.
+# Migrating off the deprecated key is deliberate follow-up work, not part of
+# this refactor.
+installCRDs: true
+
+crds:
+  # -- Same intent as installCRDs above, expressed with the non-deprecated key.
+  enabled: true

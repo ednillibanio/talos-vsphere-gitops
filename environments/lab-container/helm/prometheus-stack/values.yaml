@@ -1,0 +1,20 @@
+# Owned lab overrides for the kube-prometheus-stack Helm chart
+# (oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack, version 82.13.6).
+#
+# This file intentionally does NOT vendor the chart's full default values
+# tree. It lists only the keys where the lab environment's desired state
+# diverges from the chart's own defaults; every other key falls back to the
+# chart's built-in defaults at render time. This mirrors the treatment the
+# Cilium values file already received.
+#
+# The lab currently overrides NOTHING. The previous 191,908-byte file was a
+# byte-identical copy of the chart's own defaults, so it changed no rendered
+# output, and this file renders the same manifests. That is a finding, not a
+# design decision: it means either the chart defaults genuinely suit this lab,
+# or they were vendored with an intent to tune them that was never carried
+# out. Namespace, release name, and the privileged Pod Security labels this
+# stack needs live in release.yaml, not here.
+#
+# Add real overrides below as `key: value`, each with a `# --` comment saying
+# why the lab diverges from the chart default.
+{}

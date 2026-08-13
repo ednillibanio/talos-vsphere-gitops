@@ -59,7 +59,19 @@ In scope:
    (`d904427`).
 2. Update `branch-revision-promotion.md`, EN and PT-BR. **Done** (`d904427`).
 3. Create `environments/lab-container` with values sized for 1 CP + 1 worker.
-   **Not started.**
+   **Done** (this session, 2026-08-13). Design note: only
+   `helm/argocd/{release.yaml,values.yaml}` is target-specific — `argocd/`
+   (root app + 4 child Applications) and every other addon's `helm/<addon>/`
+   are **not** duplicated, since nothing measured so far diverges by target
+   for them. `docs/en/environments-and-targets.md` (+ PT-BR) documents the
+   full model and this decision.
+
+   Fixed along the way: `validate-cilium-adoption-readiness.sh` was not
+   updated in `d904427` alongside `validate-argocd-revisions.sh` — it still
+   compared `targetRevision` against the full directory name instead of the
+   stage, so it would have rejected `lab-container`'s Cilium Application.
+   Fixed to use the same `${env_name%%-*}` stage rule, with a
+   `target-suffix` fixture proving the old comparison would have failed.
 4. Decide the fate of `environments/lab` — rename to `lab-vsphere`, or keep as
    the vSphere-intended environment. **Not decided.** The live cluster's root
    app currently points at `environments/lab`, so a rename is not free.
@@ -81,9 +93,23 @@ for the container target; any change to `talos-toolchain`.
   passes unchanged.
 - The container environment's Argo CD reaches a steady state on the local
   cluster: no `Pending` pods from anti-affinity, no restart churn on
-  `argocd-server`. **Not yet verified.**
-- Every addon change needs to be made once, not once per target. **Not yet
-  demonstrated** — this is what the ApplicationSet question decides.
+  `argocd-server`. **Not yet verified against the committed values file** —
+  the values themselves reproduce the two out-of-band changes that were
+  already proven to fix this (see "Live-cluster state to unwind" below), and
+  every offline validator/test suite is green
+  (`validate-values-overrides.sh`, `validate-argocd-revisions.sh`,
+  `validate-cilium-adoption-readiness.sh`, all `.test.sh` suites). The live
+  cluster used for the original measurement hit unrelated instability this
+  session (worker node `PLEG is not healthy` after a Colima/Docker restart,
+  recovered on its own) that has not yet been re-run through a clean
+  `install-addon --addon=argocd` against the new values file.
+- Every addon change needs to be made once, not once per target. **Not
+  demonstrated for a hypothetical target that needs its own addon config** —
+  but for the one target actually built (container), it holds by
+  construction: `argocd/root-app.yaml` and the four child Applications are
+  not duplicated, only Argo CD's own sizing is. This is what the ApplicationSet
+  question (item 5) would need to improve on if a future target needs more
+  than sizing to differ.
 
 ## Live-cluster state to unwind
 
@@ -96,3 +122,11 @@ neither is in this repository:
 
 Both are diagnosis, not solution. A `helm upgrade` from repository values undoes
 both. They belong in the container environment's values, which is item 3.
+
+**Update (this session):** both are now committed in
+`environments/lab-container/helm/argocd/values.yaml`. The live cluster itself
+still carries the raw out-of-band `helm upgrade --set` and `kubectl scale`,
+not a `helm upgrade` from this file — that reconciliation step (e.g.
+`talos-gitops.sh install-addon --addon=argocd
+--helm-manifest-dir=.../environments/lab-container/helm`) has not been run
+yet.
