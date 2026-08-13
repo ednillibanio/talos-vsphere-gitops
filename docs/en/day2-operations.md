@@ -31,27 +31,54 @@ exists.
 
 ## 2. Running day-2
 
-Day-2 lives in `talos-toolchain` and consumes this repository's manifests.
+Day-2 lives in `talos-toolchain` and consumes this repository's manifests. The
+vSphere target uses `environments/lab` directly, `--manifest-root-dir` and
+all. The container target's Argo CD needs container-sized values (see §3),
+which live only in `environments/lab-container/helm/argocd/` — nothing else
+is duplicated there (see `environments-and-targets.md`), so its bootstrap
+takes one extra step instead of a single `--manifest-root-dir` swap:
+`install-platform-helm` walks every subdirectory it is pointed at, and
+`environments/lab-container/helm/` only contains `argocd/` on purpose — a
+plain root-dir swap would silently skip the imperative install of
+cert-manager, Longhorn and the Prometheus stack.
 
 ```bash
 export KUBECONFIG=~/.local/state/talos-toolchain/local-clusters/talos-lab/kubeconfig
 GITOPS=~/projects/alerr/talos-projects/talos-vsphere-gitops
 
-# 1. Platform Helm addons (Argo CD included; Cilium is excluded by design)
+# 1. Platform Helm addons (Cilium is excluded by design on every target)
+#    vSphere target — Argo CD included in the same pass, same values everywhere:
 ./scripts/talos/talos-gitops.sh install-platform-helm \
   --kube-context=admin@talos-lab \
   --kubeconfig=$KUBECONFIG \
   --manifest-root-dir=$GITOPS/environments/lab
 
-# 2. Hand over to Argo CD
+#    Container target — Argo CD gets container-sized values from its own
+#    directory (redis-ha disabled, single replicas — see §3); every other
+#    addon still installs from the shared `lab` tree, unmodified by target:
+./scripts/talos/talos-gitops.sh install-addon --addon=argocd \
+  --kube-context=admin@talos-lab \
+  --kubeconfig=$KUBECONFIG \
+  --helm-manifest-dir=$GITOPS/environments/lab-container/helm
+./scripts/talos/talos-gitops.sh install-platform-helm \
+  --kube-context=admin@talos-lab \
+  --kubeconfig=$KUBECONFIG \
+  --helm-manifest-dir=$GITOPS/environments/lab/helm \
+  --exclude-addons='["argocd"]'
+
+# 2. Hand over to Argo CD (identical for every target of the lab stage —
+#    root-app.yaml and the four child Applications are not duplicated)
 ./scripts/talos/talos-gitops.sh deploy-argocd-root-app \
   --kube-context=admin@talos-lab \
   --kubeconfig=$KUBECONFIG \
   --manifest-root-dir=$GITOPS/environments/lab
 ```
 
-`configure-talos-cluster-tools` runs both in one step. Add `--dry-run` to any of
-them to see the exact commands without executing.
+`configure-talos-cluster-tools` runs steps 1–2 in one call, but only when a
+single `--manifest-root-dir` covers both — true for a target that needs no
+sizing of its own (vSphere today). The container target needs the two-call
+`install-addon` + `install-platform-helm` sequence above instead. Add
+`--dry-run` to any of them to see the exact commands without executing.
 
 ### Ownership: what you may and may not install by hand
 
@@ -72,6 +99,10 @@ this repository instead.** `--allow-argocd-managed` overrides it if you have a
 specific reason.
 
 ## 3. Target profiles
+
+See `environments-and-targets.md` for the naming contract behind this section
+(`environments/lab-container` vs. `environments/lab`, why they share a
+branch). This section is the measured evidence that contract was built on.
 
 The same manifests are meant to serve a container-backed local cluster and a
 vSphere one. They differ in ways that are not cosmetic:
@@ -94,9 +125,15 @@ vSphere one. They differ in ways that are not cosmetic:
 
   The requirement comes from **this repository**, not from the chart:
   `environments/lab/helm/argocd/values.yaml` sets `redis-ha.enabled: true`. The
-  chart's own default is a single non-HA Redis. Setting it to `false` was
-  verified to resolve the container case completely — 14 pods with 3 Pending
-  became 10 pods with 0 Pending.
+  chart's own default is a single non-HA Redis. Setting it to `false`,
+  together with `server`/`repoServer`/`applicationSet` at 1 replica instead of
+  2 (liveness probes were timing out under the addon set's combined CPU
+  demand — see iteration 14), was verified to resolve the container case
+  completely — 14 pods with 3 Pending became 10 pods with 0 Pending, and the
+  `argocd-server` `Running`/`CrashLoopBackOff` alternation stopped. This is
+  now the committed `environments/lab-container/helm/argocd/values.yaml`,
+  installed instead of `environments/lab`'s copy for the container target —
+  see §2.
 
 - **Longhorn does not converge.** `addon-longhorn` stays `OutOfSync/Missing`,
   waiting on `batch/Job/longhorn-pre-upgrade`. The absence of real block devices

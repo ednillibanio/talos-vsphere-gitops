@@ -2,7 +2,13 @@
 
 Este e o ponto de entrada em Portugues (Brasil) para a documentacao GitOps.
 
-**Operando o day-2 — comece aqui:** o `day2-operations.md` cobre a execucao do
+**O que um diretorio de ambiente significa — comece aqui:**
+`environments-and-targets.md` explica o contrato de nomenclatura
+`<estagio>[-<alvo>]` (por que `lab-container` e `lab-vsphere` compartilham um
+branch, por que `main` nao), como o Argo CD resolve isso, e como adicionar um
+estagio ou um alvo.
+
+**Operando o day-2:** o `day2-operations.md` cobre a execucao do
 fluxo day-2, o que muda entre os destinos container e vSphere, os limites
 medidos em cada um, e os comandos exatos para acessar Argo CD, Prometheus,
 Grafana e Alertmanager.
@@ -22,6 +28,9 @@ apos o bootstrap do Kubernetes. Ele:
 - `environments/lab/argocd/apps/*.yaml`
 - `environments/lab/helm/<addon>/release.yaml`
 - `environments/lab/helm/<addon>/values.yaml`
+- `environments/lab-container/helm/argocd/{release.yaml,values.yaml}` —
+  somente dimensionamento para o alvo container; todo o resto e compartilhado
+  de `environments/lab`. Ver `environments-and-targets.md`.
 
 ## Notas Operacionais
 
