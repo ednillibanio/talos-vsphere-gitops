@@ -73,15 +73,23 @@ In scope:
    Fixed to use the same `${env_name%%-*}` stage rule, with a
    `target-suffix` fixture proving the old comparison would have failed.
 4. Decide the fate of `environments/lab` — rename to `lab-vsphere`, or keep as
-   the vSphere-intended environment. **Not decided.** The live cluster's root
-   app currently points at `environments/lab`, so a rename is not free.
+   the vSphere-intended environment. **Decided (owner, 2026-08-13): keep
+   `environments/lab` as the implicit default target** — it is the
+   VM/baremetal/vSphere-shaped environment (`redis-ha` enabled assumes a real
+   multi-node cluster), `lab-container` is the only environment that diverges
+   from it, and the live root app already points at `environments/lab`, so a
+   rename would not be free for no real gain. No rename.
 5. Show the owner a finished ApplicationSet file before committing to it. The
    owner accepted the direction while stating plainly they do not yet know how
    it will look, so it is to be judged as written, and dropped without argument
    if it reads worse than the five manifests. **Not started.**
 
-Out of scope: the addon set per target beyond replica sizing; storage strategy
-for the container target; any change to `talos-toolchain`.
+Out of scope, as declared at open: the addon set per target beyond replica
+sizing; storage strategy for the container target; any change to
+`talos-toolchain`. **The `talos-toolchain` boundary did not hold** — see
+"Deviation from declared scope" below. It was not anticipated at open that
+proving item 3 would require a real, from-scratch bootstrap, or that doing
+so would surface bugs blocking that bootstrap entirely.
 
 ## Acceptance criteria
 
@@ -93,23 +101,54 @@ for the container target; any change to `talos-toolchain`.
   passes unchanged.
 - The container environment's Argo CD reaches a steady state on the local
   cluster: no `Pending` pods from anti-affinity, no restart churn on
-  `argocd-server`. **Not yet verified against the committed values file** —
-  the values themselves reproduce the two out-of-band changes that were
-  already proven to fix this (see "Live-cluster state to unwind" below), and
-  every offline validator/test suite is green
-  (`validate-values-overrides.sh`, `validate-argocd-revisions.sh`,
-  `validate-cilium-adoption-readiness.sh`, all `.test.sh` suites). The live
-  cluster used for the original measurement hit unrelated instability this
-  session (worker node `PLEG is not healthy` after a Colima/Docker restart,
-  recovered on its own) that has not yet been re-run through a clean
-  `install-addon --addon=argocd` against the new values file.
-- Every addon change needs to be made once, not once per target. **Not
-  demonstrated for a hypothetical target that needs its own addon config** —
-  but for the one target actually built (container), it holds by
-  construction: `argocd/root-app.yaml` and the four child Applications are
-  not duplicated, only Argo CD's own sizing is. This is what the ApplicationSet
-  question (item 5) would need to improve on if a future target needs more
-  than sizing to differ.
+  `argocd-server`. **Met — proven by a full from-scratch bootstrap, not just
+  an in-place upgrade.** The owner correctly rejected the first verification
+  attempt (an `install-addon --allow-argocd-managed` upgrade of an
+  already-running cluster) as insufficient: it proved the values render
+  correctly, not that the documented day-2 procedure works on a cluster that
+  never had `environments/lab`'s original config. Re-verified by destroying
+  `talos-lab`, recreating day-1 from `lab` branch (talosctl default 2GiB/node
+  — see below), then running day-2 exactly as `day2-operations.md` §2
+  documents for the container target. Result: 7/7 Argo CD pods `Running`,
+  0 restarts, stable 5+ minutes.
+- Every addon change needs to be made once, not once per target. **Holds for
+  the target actually built**: `argocd/root-app.yaml` and the four child
+  Applications are not duplicated, only Argo CD's own sizing is. Not
+  demonstrated for a hypothetical target needing its own addon config —
+  that's what item 5 would need to improve on.
+
+## Deviation from declared scope: two `talos-toolchain` fixes were required
+
+The from-scratch bootstrap above failed twice before it passed, on causes
+unrelated to `lab-container`'s own values, both now fixed in
+`talos-toolchain` (commit history there has the details):
+
+1. **`validate-cilium-handoff.sh` blocked day-1 entirely.** It compared
+   day-1's `chart: oci://quay.io/cilium/charts/cilium` against the GitOps
+   Application's `repoURL: quay.io/cilium/charts` + `chart: cilium` as raw
+   strings. `talos-vsphere-gitops` commit `4116376` (already on `lab`,
+   predates this iteration) deliberately dropped the `oci://` scheme from the
+   Application's `repoURL` for an unrelated reason (quay.io 401s on a
+   malformed OCI reference otherwise) but never updated this validator to
+   match, so every real day-1 bootstrap on `lab` as it stands today failed
+   `chart mismatch` before installing anything. Fixed to strip the scheme
+   from both sides before comparing; regression fixture added
+   (`consistent-no-oci-scheme`).
+2. **`local-cluster.sh` had no way to raise a node above talosctl's 2GiB
+   default**, and the full lab addon set (cert-manager, Cilium, Longhorn,
+   kube-prometheus-stack, Argo CD) installed together on a fresh cluster
+   needs more: at 2GiB the worker sustained ~99% memory, ~200% CPU, `kubelet`
+   flapped `Ready`, `argocd-server` restarted repeatedly — a resource
+   symptom, not a `lab-container` values problem, but one the isolated
+   `install-addon` verification (see above) never would have surfaced.
+   Added `--memory-controlplanes`/`--memory-workers`/`--cpus-controlplanes`/
+   `--cpus-workers` passthrough flags (all optional, talosctl's own defaults
+   unchanged when omitted). `--memory-workers=6GB --memory-controlplanes=4GB
+   --cpus-workers=4.0 --cpus-controlplanes=2.0` resolved it; worker memory
+   settled around 45%.
+
+Both are documented in `talos-toolchain/docs/en/local-cluster.md` (+ PT-BR)
+and cross-linked from this repo's `day2-operations.md` §1 and §3.
 
 ## Live-cluster state to unwind
 

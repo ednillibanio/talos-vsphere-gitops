@@ -29,6 +29,26 @@ The published API port is assigned at create time and changes on every create.
 A context left over from a previous cluster will point at a port that no longer
 exists.
 
+**Two more prerequisites, easy to miss because they only bite on a truly
+fresh host:**
+
+- `helm repo add jetstack https://charts.jetstack.io` and
+  `helm repo add longhorn https://charts.longhorn.io` — `cert-manager` and
+  `longhorn` are pinned by classic repo alias (`jetstack/cert-manager`,
+  `longhorn/longhorn`) in their `release.yaml`, and `install-platform-helm`
+  resolves that alias against the caller's own local Helm config, unlike the
+  offline validators (which resolve it through the Argo CD Application's
+  `repoURL` instead and need no local Helm config at all). Missing either
+  repo fails with `Error: repo <name> not found` partway through
+  `install-platform-helm`, after Argo CD and any earlier addon already
+  installed.
+- Size the cluster's memory before day-1, if installing every addon at once
+  on a fresh cluster: talosctl's own 2GiB-per-node default is not enough for
+  cert-manager + Cilium + Longhorn + kube-prometheus-stack + Argo CD running
+  concurrently — see `talos-toolchain/docs/en/local-cluster.md` §"Sizing a
+  node above talosctl's 2GiB default" for the measured evidence and the
+  `--memory-workers`/`--memory-controlplanes` flags.
+
 ## 2. Running day-2
 
 Day-2 lives in `talos-toolchain` and consumes this repository's manifests. The
@@ -102,7 +122,12 @@ specific reason.
 
 See `environments-and-targets.md` for the naming contract behind this section
 (`environments/lab-container` vs. `environments/lab`, why they share a
-branch). This section is the measured evidence that contract was built on.
+branch). This section is the measured evidence that contract was built on —
+but only for what values sizing can fix (redis-ha, replica counts). A
+separate ceiling exists one layer down, in how the container node itself is
+created: talosctl's default 2GiB per node is not enough for the full addon
+set installed at once, independent of any values file. See §1's second
+prerequisite and `talos-toolchain/docs/en/local-cluster.md`.
 
 The same manifests are meant to serve a container-backed local cluster and a
 vSphere one. They differ in ways that are not cosmetic:

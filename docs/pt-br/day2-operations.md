@@ -29,6 +29,27 @@ A porta publicada da API e atribuida na criacao e muda a cada create. Um
 contexto que sobrou de um cluster anterior aponta para uma porta que nao existe
 mais.
 
+**Mais dois pre-requisitos, faceis de esquecer porque so aparecem num host
+realmente novo:**
+
+- `helm repo add jetstack https://charts.jetstack.io` e
+  `helm repo add longhorn https://charts.longhorn.io` — `cert-manager` e
+  `longhorn` sao fixados por alias de repo classico (`jetstack/cert-manager`,
+  `longhorn/longhorn`) no proprio `release.yaml`, e o `install-platform-helm`
+  resolve esse alias contra a config local do Helm de quem chama, diferente
+  dos validadores offline (que resolvem via `repoURL` da Application do Argo
+  CD e nao precisam de config local do Helm nenhuma). Faltar qualquer um dos
+  dois repos falha com `Error: repo <nome> not found` no meio do
+  `install-platform-helm`, depois que o Argo CD e outros addons anteriores ja
+  foram instalados.
+- Dimensione a memoria do cluster antes do day-1, se for instalar todos os
+  addons de uma vez num cluster novo: o default do proprio talosctl de 2GiB
+  por no nao e suficiente para cert-manager + Cilium + Longhorn +
+  kube-prometheus-stack + Argo CD rodando ao mesmo tempo — ver
+  `talos-toolchain/docs/pt-br/local-cluster.md` secao "Dimensionando um no
+  acima do default de 2GiB do talosctl" para a evidencia medida e as flags
+  `--memory-workers`/`--memory-controlplanes`.
+
 ## 2. Executando o day-2
 
 O day-2 vive no `talos-toolchain` e consome os manifests deste repositorio. O
@@ -106,7 +127,12 @@ para tras. **Mude o estado desejado neste repositorio.** O
 Ver `environments-and-targets.md` para o contrato de nomenclatura por tras
 desta secao (`environments/lab-container` vs. `environments/lab`, por que
 compartilham um branch). Esta secao e a evidencia medida sobre a qual esse
-contrato foi construido.
+contrato foi construido — mas so para o que dimensionamento de valores
+resolve (redis-ha, contagem de replicas). Existe um teto separado uma camada
+abaixo, em como o proprio no do container e criado: o default do talosctl de
+2GiB por no nao e suficiente para o conjunto completo de addons instalado de
+uma vez, independente de qualquer arquivo de valores. Ver o segundo
+pre-requisito da secao 1 e `talos-toolchain/docs/pt-br/local-cluster.md`.
 
 Os mesmos manifests deveriam servir um cluster local em container e um no
 vSphere. As diferencas nao sao cosmeticas:
