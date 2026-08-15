@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Fake helm: simulates a chart that resolves successfully (pull succeeds,
+# producing an archive) but fails to render against the supplied values.
+
+case "${1:-}" in
+  pull)
+    dest=""
+    prev=""
+    for arg in "$@"; do
+      if [[ "$prev" == "--destination" ]]; then
+        dest="$arg"
+      fi
+      prev="$arg"
+    done
+    if [[ -z "$dest" ]]; then
+      echo "fake helm pull: no --destination given" >&2
+      exit 1
+    fi
+    : >"$dest/cilium-fake.tgz"
+    exit 0
+    ;;
+  template)
+    echo "Error: execution error at (cilium/templates/fake.yaml:1:4): fake render failure injected by test" >&2
+    exit 1
+    ;;
+  *)
+    echo "unexpected fake helm invocation: $*" >&2
+    exit 1
+    ;;
+esac

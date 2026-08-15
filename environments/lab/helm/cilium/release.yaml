@@ -2,5 +2,5 @@ releaseName: cilium
 namespace: kube-system
 chart: oci://quay.io/cilium/charts/cilium
 version: 1.19.1
-valuesFile: environments/lab/helm/cilium/values.yaml
+valuesFile: values.yaml
 validationSelector: k8s-app=cilium

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Fake helm: simulates an OCI registry that cannot resolve the chart
+# (network/registry failure), independent of the values file supplied.
+
+case "${1:-}" in
+  pull)
+    echo "Error: failed to authorize: failed to fetch anonymous token: dial tcp: lookup quay.io: no such host" >&2
+    exit 1
+    ;;
+  *)
+    echo "unexpected fake helm invocation: $*" >&2
+    exit 1
+    ;;
+esac

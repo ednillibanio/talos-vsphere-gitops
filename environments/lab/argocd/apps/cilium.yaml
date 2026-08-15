@@ -8,7 +8,13 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: oci://quay.io/cilium/charts
+    # No oci:// scheme here. With the prefix, Argo CD treats the value as the
+    # complete OCI artifact reference and never appends `chart`, requesting
+    # /v2/cilium/charts/manifests/<version> instead of
+    # /v2/cilium/charts/cilium/manifests/<version>. quay.io answers 401 rather
+    # than 404 for a path that does not exist, so the failure reads as an auth
+    # problem and sends you looking for credentials that were never needed.
+    - repoURL: quay.io/cilium/charts
       chart: cilium
       targetRevision: 1.19.1
       helm:
@@ -16,11 +22,31 @@ spec:
         valueFiles:
           - $values/environments/lab/helm/cilium/values.yaml
     - repoURL: https://github.com/ednillibanio/talos-vsphere-gitops.git
-      targetRevision: main
+      targetRevision: lab
       ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
+  # The Cilium chart mints these two Secrets with genCA/genSignedCert, so every
+  # render produces different bytes and the live objects never match the target
+  # state. Without this the Application stays OutOfSync forever even when the
+  # sync itself reports Succeeded -- and worse, selfHeal rewrites the CA on each
+  # comparison, which would rotate Hubble's serving certificate continuously.
+  # Ignore only the payload of these two named Secrets; their creation,
+  # deletion, and metadata stay under Argo CD's control.
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: cilium-ca
+      namespace: kube-system
+      jsonPointers:
+        - /data
+    - group: ""
+      kind: Secret
+      name: hubble-server-certs
+      namespace: kube-system
+      jsonPointers:
+        - /data
   syncPolicy:
     automated:
       prune: true

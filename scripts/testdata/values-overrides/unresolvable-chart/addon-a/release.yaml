@@ -1,0 +1,8 @@
+releaseName: addon-a
+namespace: addon-a
+# Deliberately pinned to a Helm repo alias that is never registered, and for
+# which no Argo CD Application exists to supply a repoURL. helm rejects this
+# locally, so the case proves the failure path without touching the network.
+chart: definitely-not-a-registered-repo/nope
+version: 0.0.1
+valuesFile: values.yaml

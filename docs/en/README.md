@@ -2,10 +2,23 @@
 
 This is the English entrypoint for GitOps documentation.
 
+**What an environment directory means — start here:**
+`environments-and-targets.md` explains the `<stage>[-<target>]` naming
+contract (why `lab-container` and `lab-vsphere` share a branch, why `main`
+does not), how Argo CD resolves it, and how to add a stage or a target.
+
+**Operating day-2:** `day2-operations.md` covers running the
+day-2 flow, what differs between the container and vSphere targets, the limits
+measured on each, and the exact commands to reach Argo CD, Prometheus, Grafana
+and Alertmanager.
+
 ## Repository Purpose
 
-- Keep day-2 platform manifests as source of truth.
-- Be consumed by Argo CD root app from cluster automation.
+This repository owns Argo CD desired state, environment revision policy,
+platform services, and workloads after Kubernetes bootstrap. It:
+
+- Keeps day-2 platform manifests as source of truth.
+- Is consumed by the Argo CD root app from cluster automation.
 
 ## Current Structure
 
@@ -13,18 +26,42 @@ This is the English entrypoint for GitOps documentation.
 - `environments/lab/argocd/apps/*.yaml`
 - `environments/lab/helm/<addon>/release.yaml`
 - `environments/lab/helm/<addon>/values.yaml`
+- `environments/lab-container/helm/argocd/{release.yaml,values.yaml}` —
+  container-target sizing only; everything else is shared from
+  `environments/lab`. See `environments-and-targets.md`.
 
 ## Operational Notes
 
 - Argo CD root app path currently points to:
   - `environments/lab/argocd/apps`
 - Child applications render/addon lifecycle from this repo.
+- Every environment's Argo CD sources pin `targetRevision` to that
+  environment's own branch (`lab` -> `lab`, `main` -> `main`); see
+  `docs/en/branch-revision-promotion.md` for the contract, the offline
+  validator, and the promotion procedure.
+- The `addon-cilium` Application adopts an already-running, imperatively
+  bootstrapped Cilium Helm release rather than installing a new one; see
+  `docs/en/cilium-adoption.md` for the readiness/adoption/rollback contract
+  and its offline validator.
+- Every `helm/<addon>/values.yaml` is an owned override set, never a vendored
+  copy of the chart's defaults; see `docs/en/values-ownership.md` for the
+  contract, its two offline validators, and how to prove a values change with
+  a before/after Helm render.
+
+## Milestones
+
+- macOS Milestone A: a local cluster can be bootstrapped and reconciled
+  through `talos-toolchain` without any VMware provisioning. This repository's
+  Argo CD manifests apply the same way regardless of where the underlying
+  Kubernetes cluster runs.
+- vSphere provisioning and VIP validation are a later, deferred milestone
+  owned by `provision-talos-vsphere`, not a dependency of local macOS work.
 
 ## Related Repositories
 
-- Day-1 bootstrap/tooling integration:
-  - `talos-vsphere-lab`
-- Future reusable Talos toolchain:
-  - separate toolchain repository (in preparation)
+- Talos day-1/day-2 lifecycle CLI (canonical Talos CTL):
+  - `talos-toolchain`
+- vSphere/ESXi provisioning integration:
+  - `provision-talos-vsphere`
 - Cross-repository execution handoff:
-  - `talos-vsphere-lab/docs/en/cross-repo-handoff.md`
+  - `provision-talos-vsphere/docs/en/cross-repo-handoff.md`

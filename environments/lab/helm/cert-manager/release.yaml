@@ -2,5 +2,5 @@ releaseName: cert-manager
 namespace: cert-manager
 chart: jetstack/cert-manager
 version: 1.20.0
-valuesFile: environments/lab/helm/cert-manager/values.yaml
+valuesFile: values.yaml
 validationSelector: app.kubernetes.io/instance=cert-manager

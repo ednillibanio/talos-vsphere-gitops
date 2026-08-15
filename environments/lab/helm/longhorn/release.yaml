@@ -2,7 +2,7 @@ releaseName: longhorn
 namespace: longhorn-system
 chart: longhorn/longhorn
 version: 1.9.0
-valuesFile: environments/lab/helm/longhorn/values.yaml
+valuesFile: values.yaml
 validationSelector: app=longhorn-manager
 namespaceLabelEnforce: privileged
 namespaceLabelAudit: privileged

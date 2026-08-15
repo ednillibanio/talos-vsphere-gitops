@@ -1,0 +1,14 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: addons-root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ednillibanio/talos-vsphere-gitops.git
+    targetRevision: lab
+    path: environments/lab-container/argocd/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd

@@ -23,6 +23,11 @@ KUBECONFIG=/home/vagrant/.kube/config \
 kubectl apply -f /tmp/repo-secret.yaml
 ```
 
+Edit the copy outside the repository, as above. If you edit one inside it
+instead, the repository `.gitignore` ignores `*secret.yaml` as a backstop — but
+that is a safety net for a mistake, not a supported path, and it does not help
+a file that is already tracked.
+
 Then apply app-of-apps:
 
 ```bash
@@ -37,3 +42,7 @@ kubectl apply -f environments/lab/argocd/root-app.yaml
   - Source B: this Git repository (`ref: values`) for values files.
 - Update `repoURL` or `targetRevision` if your repository address or branch
   differs from current defaults.
+- `targetRevision` for this repository's own sources must stay `lab` for
+  everything under `environments/lab`; see
+  `docs/en/branch-revision-promotion.md` (`docs/pt-br/` for PT-BR) before
+  promoting to another environment.
