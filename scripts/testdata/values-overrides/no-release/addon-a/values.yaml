@@ -1,0 +1,3 @@
+# Owned lab overrides for a chart, deliberately missing release.yaml to
+# exercise the "cannot prove this addon renders" fail-closed path (IR-01).
+foo: true
