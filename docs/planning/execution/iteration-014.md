@@ -1,11 +1,11 @@
 # Iteration 14 — separate promotion stage from deployment target
 
-- Status: `REVIEW` — implementation merged; independent Codex review pending
+- Status: `DONE` — implementation merged; independent Codex review completed, `APPROVED`
 - Repository: `talos-vsphere-gitops`
 - Branch: `feat/target-stage-split` (merged into `lab`; branch deleted)
 - Baseline commit: `561b9a4` (`lab`)
 - Implementer: Claude
-- Reviewer: Codex (pending)
+- Reviewer: Codex (`APPROVED`, 2026-08-15)
 - Date opened: 2026-08-07
 
 ## Process note
@@ -169,3 +169,35 @@ not a `helm upgrade` from this file — that reconciliation step (e.g.
 `talos-gitops.sh install-addon --addon=argocd
 --helm-manifest-dir=.../environments/lab-container/helm`) has not been run
 yet.
+
+## Independent review
+
+- Reviewer: Codex
+- Exact GitOps implementation reviewed: `ae1d260` (`fix(environments): remove dead lab-container/argocd duplicate tree`)
+- GitOps diff range: `d904427..ae1d260` (the seven Iteration 14 commits, reviewed after merge into `lab`)
+- Exact toolchain commits reviewed: `e4c61de` and `a519761`
+- Toolchain baseline used for those commits: `03a1442`
+- Review status: completed 2026-08-15
+
+### Checks re-executed
+
+- `talos-vsphere-gitops/scripts/validate-argocd-revisions.test.sh`: passed; the target-suffix fixture accepts `lab-container -> lab` and the mixed-revision fixture still fails.
+- `talos-vsphere-gitops/scripts/validate-cilium-adoption-readiness.test.sh`: passed; the target-suffix fixture accepts the stage revision and the negative fixtures still fail closed.
+- `talos-toolchain/scripts/talos/tests/test-cilium-handoff.sh`: passed, 7/7, including `consistent-no-oci-scheme`.
+- `bash -n` over the changed GitOps validators/tests and toolchain handoff/local-cluster scripts: passed.
+- `talos-toolchain/scripts/talos/local-cluster.sh create --dry-run` under Homebrew Bash 5 with `--memory-controlplanes=4GB --memory-workers=6GB --cpus-controlplanes=2.0 --cpus-workers=4.0`: passed; all four flags appeared in the generated `talosctl cluster create docker` command.
+- `talos-toolchain/scripts/talos/tests/test-local-cluster.sh`: not green in this host environment (52 passed, 18 failed). The existing test harness prepends fixture commands, but `local-cluster.sh`'s Bash preflight prepends the Homebrew directory, causing real Colima/talosctl execution and Docker-network errors. This failure is outside the Iteration 14 diff and was not treated as an Iteration 14 defect; no live cluster or infrastructure operation was run by this review.
+- No from-scratch bootstrap was re-run: the recorded owner evidence was inspected, and repeating Docker/Colima bootstrap was outside this review's authorization.
+
+### Assessment of the toolchain deviation
+
+Both out-of-scope toolchain changes are genuine, independently useful fixes. `e4c61de` corrects a real false mismatch between equivalent OCI chart identities and is covered by a focused regression fixture. `a519761` exposes the underlying Talos Docker node resource limit without changing defaults, making the local-cluster wrapper usable for the measured full addon set while remaining environment-agnostic.
+
+The deviation is adequately justified and traceable: the record explains why each fix blocked the from-scratch acceptance run, the toolchain documentation is bilingual, and the GitOps day-2 documentation links back to the sizing contract. The changes should not be treated as hidden GitOps-specific behavior. No correction is requested for this iteration. The pre-existing local-cluster fixture/preflight interaction is a separate maintenance follow-up, not a blocker for this implementation.
+
+### Verdict
+
+**APPROVED** — the stage/target contract, target-specific Argo CD sizing, validator updates, dead-tree removal, and documented live-state limitation match the owner decisions and the declared acceptance criteria. The ApplicationSet remains intentionally parked and is not a review finding. The two toolchain fixes are acceptable scope expansion because they are genuine blockers found during the required from-scratch verification and are documented across repository boundaries.
+
+- Corrections requested: none.
+- Follow-up: optionally track the pre-existing `test-local-cluster.sh` fixture isolation failure separately; it does not alter this verdict.
