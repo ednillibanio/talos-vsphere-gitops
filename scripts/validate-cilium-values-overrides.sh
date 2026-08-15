@@ -7,14 +7,14 @@ set -euo pipefail
 # override set rather than a vendored copy of the chart's own default
 # values.yaml: it must exist, must not carry the chart's generated "DO NOT
 # EDIT" marker, must declare every documented owned-override key, and must
-# not sit next to a vendored values.base.yaml. When `helm` is installed, the
-# script also pulls the pinned chart from its OCI registry (network access,
-# no cluster/credentials) and, once that chart is locally resolved, renders
-# it with the values file. A chart that cannot be pulled/resolved is reported
-# as a limitation, not a failure. A resolved chart that fails to render with
-# the supplied values is a real validation failure and exits non-zero.
-# Contacts no Kubernetes, Argo CD, Docker, Colima, Talos, or VMware endpoint
-# and uses no credentials.
+# not sit next to a vendored values.base.yaml. Once those checks pass, the
+# script pulls the pinned chart from its OCI registry (network access, no
+# cluster/credentials) and renders it with the values file. This is a
+# mandatory, fail-closed gate: missing release metadata, an unparseable
+# chart/version, a missing `helm` binary, a chart-pull failure, and a missing
+# pull archive are all validation failures, not limitations — a green run
+# means the chart actually rendered. Contacts no Kubernetes, Argo CD, Docker,
+# Colima, Talos, or VMware endpoint and uses no credentials.
 #
 # Usage: validate-cilium-values-overrides.sh [values-file] [release-file]
 #
@@ -32,7 +32,7 @@ set -euo pipefail
 #     scripts/testdata/cilium-values/valid/release.yaml
 
 usage() {
-  sed -n '2,24p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,25p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
@@ -87,22 +87,25 @@ fi
 
 echo "OK: $values_file is a minimal owned override set"
 
+# From here on, every unresolved step is a validation failure, not a note:
+# a green run must mean the pinned chart actually rendered with these values.
+
 if [[ ! -f "$release_file" ]]; then
-  echo "note: release file not found ($release_file); skipping pinned-chart Helm render" >&2
-  exit 0
+  echo "FAIL: release file not found ($release_file); cannot prove the pinned chart renders" >&2
+  exit 1
 fi
 
 chart="$(sed -n 's/^chart:[[:space:]]*//p' "$release_file" | head -n1)"
 version="$(sed -n 's/^version:[[:space:]]*//p' "$release_file" | head -n1)"
 
 if [[ -z "$chart" || -z "$version" ]]; then
-  echo "note: could not parse chart/version from $release_file; skipping pinned-chart Helm render" >&2
-  exit 0
+  echo "FAIL: could not parse chart/version from $release_file" >&2
+  exit 1
 fi
 
 if ! command -v helm >/dev/null 2>&1; then
-  echo "note: helm not installed; skipping pinned-chart Helm render (chart=$chart version=$version)" >&2
-  exit 0
+  echo "FAIL: helm not installed; cannot prove pinned chart $chart:$version renders" >&2
+  exit 1
 fi
 
 pull_out="$(mktemp)"
@@ -112,16 +115,16 @@ trap 'rm -f "$pull_out" "$render_out"; rm -rf "$chart_dir"' EXIT
 
 if ! helm pull "$chart" --version "$version" --destination "$chart_dir" \
   >"$pull_out" 2>&1; then
-  echo "note: pinned Cilium chart was not locally resolvable; reporting limitation instead of substituting a live-cluster check" >&2
-  echo "note: helm pull output follows" >&2
+  echo "FAIL: could not resolve pinned chart $chart:$version" >&2
+  echo "FAIL: helm pull output follows" >&2
   cat "$pull_out" >&2
-  exit 0
+  exit 1
 fi
 
 chart_archive="$(find "$chart_dir" -maxdepth 1 -name '*.tgz' | head -n1)"
 if [[ -z "$chart_archive" ]]; then
-  echo "note: pinned Cilium chart was not locally resolvable (helm pull produced no archive); reporting limitation instead of substituting a live-cluster check" >&2
-  exit 0
+  echo "FAIL: helm pull produced no archive for $chart:$version" >&2
+  exit 1
 fi
 
 if helm template cilium-values-check "$chart_archive" \
