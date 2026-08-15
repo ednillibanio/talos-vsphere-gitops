@@ -1,11 +1,11 @@
 # Iteration 14 — separate promotion stage from deployment target
 
-- Status: `IN_PROGRESS`
+- Status: `REVIEW` — implementation merged; independent Codex review pending
 - Repository: `talos-vsphere-gitops`
-- Branch: `feat/target-stage-split`
+- Branch: `feat/target-stage-split` (merged into `lab`; branch deleted)
 - Baseline commit: `561b9a4` (`lab`)
 - Implementer: Claude
-- Reviewer: pending (must not be the implementer)
+- Reviewer: Codex (pending)
 - Date opened: 2026-08-07
 
 ## Process note
