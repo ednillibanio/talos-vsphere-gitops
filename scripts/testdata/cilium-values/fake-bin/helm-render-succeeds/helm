@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Fake helm: simulates a chart that resolves and renders successfully,
+# independent of network access, for deterministic happy-path testing.
+
+case "${1:-}" in
+  pull)
+    dest=""
+    prev=""
+    for arg in "$@"; do
+      if [[ "$prev" == "--destination" ]]; then
+        dest="$arg"
+      fi
+      prev="$arg"
+    done
+    if [[ -z "$dest" ]]; then
+      echo "fake helm pull: no --destination given" >&2
+      exit 1
+    fi
+    : >"$dest/cilium-fake.tgz"
+    exit 0
+    ;;
+  template)
+    echo "# Source: cilium/templates/fake.yaml"
+    echo "kind: ConfigMap"
+    exit 0
+    ;;
+  *)
+    echo "unexpected fake helm invocation: $*" >&2
+    exit 1
+    ;;
+esac

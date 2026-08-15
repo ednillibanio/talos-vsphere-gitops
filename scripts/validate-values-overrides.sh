@@ -7,9 +7,12 @@ set -euo pipefail
 # owned override set rather than a vendored copy of the chart's own default
 # values.yaml. For each addon directory it asserts the values file exists,
 # does not carry a chart-generated vendoring marker, and does not sit next to
-# a leftover values.base.yaml. When `helm` is installed it also pulls the
-# chart pinned in release.yaml (network access, no cluster/credentials) and
-# renders it with the values file.
+# a leftover values.base.yaml. It then pulls the chart pinned in release.yaml
+# (network access, no cluster/credentials) and renders it with the values
+# file. This render pass is mandatory, not best-effort: a missing `helm`
+# binary or a missing release.yaml both fail the run instead of being skipped
+# with a note, because a green run is supposed to mean every addon actually
+# rendered.
 #
 # A chart pinned by classic repo alias (`longhorn/longhorn`) is resolved by
 # reading the matching Argo CD Application's repoURL and passing it to
@@ -19,6 +22,11 @@ set -euo pipefail
 # A pinned chart that cannot be resolved or rendered is a failure. It used to
 # be reported as a note while the script still exited zero, which let a green
 # run silently skip an addon.
+#
+# With no argument, the default gate discovers and validates every tracked
+# environments/*/helm root (via `git ls-files`), not only environments/lab/helm.
+# Adding a new environment/target directory is covered automatically; pass an
+# explicit helm-root argument to validate one root in isolation.
 #
 # This is the addon-agnostic counterpart to
 # validate-cilium-values-overrides.sh, which additionally enforces Cilium's
@@ -30,7 +38,7 @@ set -euo pipefail
 # Usage: validate-values-overrides.sh [helm-root]
 #
 # Actions:
-#   (default) Validate every addon under environments/lab/helm
+#   (default) Validate every tracked environments/*/helm root
 #
 # Options:
 #   -h, --help   Show this help and exit
@@ -40,7 +48,7 @@ set -euo pipefail
 #   ./scripts/validate-values-overrides.sh environments/lab/helm
 
 usage() {
-  sed -n '2,32p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '4,48p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
@@ -48,13 +56,8 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-helm_root="${1:-environments/lab/helm}"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fail=0
-
-if [[ ! -d "$helm_root" ]]; then
-  echo "error: helm root not found: $helm_root" >&2
-  exit 2
-fi
 
 # Markers that identify a values file copied wholesale from a chart, rather
 # than written as an override set. Each is a header the upstream charts ship
@@ -64,58 +67,6 @@ vendored_markers=(
   '+docs:section='
   'Default values for'
 )
-
-addon_count=0
-
-for addon_dir in "$helm_root"/*/; do
-  [[ -d "$addon_dir" ]] || continue
-  addon="$(basename "$addon_dir")"
-  values_file="${addon_dir}values.yaml"
-  release_file="${addon_dir}release.yaml"
-  addon_count=$((addon_count + 1))
-
-  if [[ ! -f "$values_file" ]]; then
-    echo "FAIL: $addon: values file not found: $values_file" >&2
-    fail=1
-    continue
-  fi
-
-  for marker in "${vendored_markers[@]}"; do
-    if grep -qF "$marker" "$values_file"; then
-      echo "FAIL: $addon: $values_file carries a chart vendoring marker: $marker" >&2
-      fail=1
-    fi
-  done
-
-  vendored_default_file="${addon_dir}values.base.yaml"
-  if [[ -f "$vendored_default_file" ]]; then
-    echo "FAIL: $addon: unreferenced vendored defaults still present: $vendored_default_file" >&2
-    fail=1
-  fi
-done
-
-if [[ "$addon_count" -eq 0 ]]; then
-  echo "error: no addon directories found under $helm_root" >&2
-  exit 2
-fi
-
-if [[ "$fail" -ne 0 ]]; then
-  echo "FAIL: values override contract violations detected" >&2
-  exit 1
-fi
-
-echo "OK: all $addon_count addon values files under $helm_root are minimal owned override sets"
-
-if ! command -v helm >/dev/null 2>&1; then
-  echo "note: helm not installed; skipping pinned-chart renders" >&2
-  exit 0
-fi
-
-# --- pinned-chart render, per addon -----------------------------------------
-
-# Argo CD Applications sit beside the Helm root and carry the real chart
-# repository URL for charts that release.yaml pins by alias.
-apps_dir="$(dirname "$helm_root")/argocd/apps"
 
 # Print the repoURL of the source that serves $2 in Application file $1.
 # In these manifests the chart source is a repoURL line followed by its chart
@@ -134,69 +85,166 @@ chart_repo_url() {
   ' "$app_file"
 }
 
-for addon_dir in "$helm_root"/*/; do
-  [[ -d "$addon_dir" ]] || continue
-  addon="$(basename "$addon_dir")"
-  values_file="${addon_dir}values.yaml"
-  release_file="${addon_dir}release.yaml"
+# Validate one helm-root: owned-override checks, then (if helm is installed)
+# a pinned-chart render per addon. Sets the shared $fail flag on any problem.
+validate_helm_root() {
+  local helm_root="$1"
 
-  if [[ ! -f "$release_file" ]]; then
-    echo "note: $addon: release file not found ($release_file); skipping render" >&2
-    continue
-  fi
-
-  chart="$(sed -n 's/^chart:[[:space:]]*//p' "$release_file" | head -n1)"
-  version="$(sed -n 's/^version:[[:space:]]*//p' "$release_file" | head -n1)"
-  namespace="$(sed -n 's/^namespace:[[:space:]]*//p' "$release_file" | head -n1)"
-
-  if [[ -z "$chart" || -z "$version" ]]; then
-    echo "FAIL: $addon: could not parse chart/version from $release_file" >&2
+  if [[ ! -d "$helm_root" ]]; then
+    echo "error: helm root not found: $helm_root" >&2
     fail=1
-    continue
+    return
   fi
 
-  # A chart pinned as alias/name resolves through the Application's repoURL
-  # when one is available, so no Helm repo alias has to be registered locally.
-  pull_args=("$chart")
-  if [[ "$chart" != *"://"* && "$chart" == */* ]]; then
-    chart_name="${chart#*/}"
-    repo_url="$(chart_repo_url "$apps_dir/$addon.yaml" "$chart_name" || true)"
-    if [[ -n "$repo_url" ]]; then
-      pull_args=("$chart_name" --repo "$repo_url")
+  local addon_count=0 root_fail=0
+  local addon_dir addon values_file release_file vendored_default_file marker
+
+  for addon_dir in "$helm_root"/*/; do
+    [[ -d "$addon_dir" ]] || continue
+    addon="$(basename "$addon_dir")"
+    values_file="${addon_dir}values.yaml"
+    addon_count=$((addon_count + 1))
+
+    if [[ ! -f "$values_file" ]]; then
+      echo "FAIL: $helm_root/$addon: values file not found: $values_file" >&2
+      fail=1; root_fail=1
+      continue
     fi
+
+    for marker in "${vendored_markers[@]}"; do
+      if grep -qF "$marker" "$values_file"; then
+        echo "FAIL: $helm_root/$addon: $values_file carries a chart vendoring marker: $marker" >&2
+        fail=1; root_fail=1
+      fi
+    done
+
+    vendored_default_file="${addon_dir}values.base.yaml"
+    if [[ -f "$vendored_default_file" ]]; then
+      echo "FAIL: $helm_root/$addon: unreferenced vendored defaults still present: $vendored_default_file" >&2
+      fail=1; root_fail=1
+    fi
+  done
+
+  if [[ "$addon_count" -eq 0 ]]; then
+    echo "error: no addon directories found under $helm_root" >&2
+    fail=1
+    return
   fi
 
-  chart_dir="$(mktemp -d)"
-  pull_out="$(mktemp)"
-  render_out="$(mktemp)"
+  if [[ "$root_fail" -ne 0 ]]; then
+    # Owned-override contract violations already found; skip the network
+    # render pass for this root instead of piling on redundant failures.
+    return
+  fi
 
-  if ! helm pull "${pull_args[@]}" --version "$version" --destination "$chart_dir" \
-    >"$pull_out" 2>&1; then
-    echo "FAIL: $addon: could not resolve pinned chart $chart:$version" >&2
-    cat "$pull_out" >&2
+  echo "OK: all $addon_count addon values files under $helm_root are minimal owned override sets"
+
+  if ! command -v helm >/dev/null 2>&1; then
+    echo "FAIL: $helm_root: helm not installed; cannot prove addons render" >&2
     fail=1
+    return
+  fi
+
+  # --- pinned-chart render, per addon -----------------------------------
+  # Argo CD Applications sit beside the Helm root and carry the real chart
+  # repository URL for charts that release.yaml pins by alias.
+  local apps_dir="$(dirname "$helm_root")/argocd/apps"
+  local chart version namespace pull_args chart_name repo_url
+  local chart_dir pull_out render_out chart_archive
+
+  for addon_dir in "$helm_root"/*/; do
+    [[ -d "$addon_dir" ]] || continue
+    addon="$(basename "$addon_dir")"
+    values_file="${addon_dir}values.yaml"
+    release_file="${addon_dir}release.yaml"
+
+    if [[ ! -f "$release_file" ]]; then
+      echo "FAIL: $helm_root/$addon: release file not found ($release_file); cannot prove this addon renders" >&2
+      fail=1
+      continue
+    fi
+
+    chart="$(sed -n 's/^chart:[[:space:]]*//p' "$release_file" | head -n1)"
+    version="$(sed -n 's/^version:[[:space:]]*//p' "$release_file" | head -n1)"
+    namespace="$(sed -n 's/^namespace:[[:space:]]*//p' "$release_file" | head -n1)"
+
+    if [[ -z "$chart" || -z "$version" ]]; then
+      echo "FAIL: $helm_root/$addon: could not parse chart/version from $release_file" >&2
+      fail=1
+      continue
+    fi
+
+    # A chart pinned as alias/name resolves through the Application's repoURL
+    # when one is available, so no Helm repo alias has to be registered locally.
+    pull_args=("$chart")
+    if [[ "$chart" != *"://"* && "$chart" == */* ]]; then
+      chart_name="${chart#*/}"
+      repo_url="$(chart_repo_url "$apps_dir/$addon.yaml" "$chart_name" || true)"
+      if [[ -n "$repo_url" ]]; then
+        pull_args=("$chart_name" --repo "$repo_url")
+      fi
+    fi
+
+    chart_dir="$(mktemp -d)"
+    pull_out="$(mktemp)"
+    render_out="$(mktemp)"
+
+    if ! helm pull "${pull_args[@]}" --version "$version" --destination "$chart_dir" \
+      >"$pull_out" 2>&1; then
+      echo "FAIL: $helm_root/$addon: could not resolve pinned chart $chart:$version" >&2
+      cat "$pull_out" >&2
+      fail=1
+      rm -rf "$chart_dir"; rm -f "$pull_out" "$render_out"
+      continue
+    fi
+
+    chart_archive="$(find "$chart_dir" -maxdepth 1 -name '*.tgz' | head -n1)"
+    if [[ -z "$chart_archive" ]]; then
+      echo "FAIL: $helm_root/$addon: helm pull produced no archive for $chart:$version" >&2
+      fail=1
+      rm -rf "$chart_dir"; rm -f "$pull_out" "$render_out"
+      continue
+    fi
+
+    if helm template "values-check-$addon" "$chart_archive" \
+      --namespace "${namespace:-default}" -f "$values_file" >"$render_out" 2>&1; then
+      echo "OK: $helm_root/$addon: helm template rendered $values_file against $chart:$version"
+    else
+      echo "FAIL: $helm_root/$addon: resolved chart $chart:$version could not render $values_file" >&2
+      cat "$render_out" >&2
+      fail=1
+    fi
+
     rm -rf "$chart_dir"; rm -f "$pull_out" "$render_out"
-    continue
+  done
+}
+
+if [[ -n "${1:-}" ]]; then
+  validate_helm_root "$1"
+else
+  # Discover every tracked environments/*/helm root so a new target directory
+  # is covered by the default gate without an explicit opt-in.
+  discovered_roots=()
+  while IFS= read -r root; do
+    discovered_roots+=("$root")
+  done < <(
+    cd "$repo_root" && git ls-files 'environments/*/helm/*' |
+      sed -E 's#(environments/[^/]+/helm)/.*#\1#' | sort -u
+  )
+
+  if [[ "${#discovered_roots[@]}" -eq 0 ]]; then
+    echo "error: no tracked environments/*/helm roots found" >&2
+    exit 2
   fi
 
-  chart_archive="$(find "$chart_dir" -maxdepth 1 -name '*.tgz' | head -n1)"
-  if [[ -z "$chart_archive" ]]; then
-    echo "FAIL: $addon: helm pull produced no archive for $chart:$version" >&2
-    fail=1
-    rm -rf "$chart_dir"; rm -f "$pull_out" "$render_out"
-    continue
-  fi
+  for root in "${discovered_roots[@]}"; do
+    validate_helm_root "$repo_root/$root"
+  done
+fi
 
-  if helm template "values-check-$addon" "$chart_archive" \
-    --namespace "${namespace:-default}" -f "$values_file" >"$render_out" 2>&1; then
-    echo "OK: $addon: helm template rendered $values_file against $chart:$version"
-  else
-    echo "FAIL: $addon: resolved chart $chart:$version could not render $values_file" >&2
-    cat "$render_out" >&2
-    fail=1
-  fi
+if [[ "$fail" -ne 0 ]]; then
+  echo "FAIL: values override contract violations detected" >&2
+  exit 1
+fi
 
-  rm -rf "$chart_dir"; rm -f "$pull_out" "$render_out"
-done
-
-exit "$fail"
+exit 0

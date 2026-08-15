@@ -1,0 +1,4 @@
+releaseName: cilium
+namespace: kube-system
+valuesFile: scripts/testdata/cilium-values/valid/values.yaml
+validationSelector: k8s-app=cilium

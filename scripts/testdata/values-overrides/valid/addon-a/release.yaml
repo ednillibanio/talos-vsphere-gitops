@@ -1,0 +1,5 @@
+releaseName: addon-a
+namespace: addon-a
+chart: oci://example.invalid/charts/addon-a
+version: 0.0.0-test
+valuesFile: values.yaml

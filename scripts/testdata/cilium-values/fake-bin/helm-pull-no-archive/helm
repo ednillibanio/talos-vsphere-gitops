@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Fake helm: simulates a `helm pull` that exits 0 but writes no archive to
+# the destination directory, e.g. a registry that reports success without
+# actually delivering a chart.
+
+case "${1:-}" in
+  pull)
+    exit 0
+    ;;
+  *)
+    echo "unexpected fake helm invocation: $*" >&2
+    exit 1
+    ;;
+esac
