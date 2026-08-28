@@ -70,8 +70,9 @@ different management model, not a path change.
 
 ## Verifying
 
-Two offline validators enforce this. Both contact no cluster and use no
-credentials; they pull the pinned chart from its registry and render it.
+Two cluster-free validators enforce this. Neither contacts a cluster nor uses
+credentials; both pull the pinned chart from its registry and render it, so
+they require network access or a usable local chart cache.
 
 ```bash
 # Every addon: no vendoring markers, no leftover values.base.yaml, renders
@@ -83,9 +84,9 @@ credentials; they pull the pinned chart from its registry and render it.
 ./scripts/validate-cilium-values-overrides.test.sh
 ```
 
-A chart that cannot be pulled is reported as a limitation, not a failure — so
-the check stays useful offline. A chart that *is* resolved but fails to render
-with the values file is a real failure.
+A chart that cannot be resolved or pulled fails the validation: a successful
+result must prove that every selected addon rendered. A chart that resolves but
+fails to render with the values file is also a real failure.
 
 ## Changing a values file
 
