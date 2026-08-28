@@ -34,8 +34,9 @@ render instead of eyeballing it.
 
 ## Checks
 
-All offline: no cluster, no credentials. They pull pinned charts from their
-registries and render them.
+Cluster- and credential-free: the validators pull pinned charts from their
+registries and render them, so they require network access or an already
+available chart cache. They do not contact a live Kubernetes cluster.
 
 ```bash
 ./scripts/validate-values-overrides.sh          # every addon: no vendored copies, renders

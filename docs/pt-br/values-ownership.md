@@ -72,8 +72,9 @@ de gerenciamento diferente, nao uma mudanca de caminho.
 
 ## Verificando
 
-Dois validadores offline garantem isso. Nenhum contata cluster nem usa
-credenciais; eles baixam o chart fixado do registry e renderizam.
+Dois validadores sem cluster garantem isso. Nenhum contata um cluster nem usa
+credenciais; ambos baixam o chart fixado do registry e renderizam, portanto
+precisam de acesso de rede ou de um cache local utilizavel do chart.
 
 ```bash
 # Todo addon: sem marcadores de vendorizacao, sem values.base.yaml, renderiza
@@ -85,9 +86,10 @@ credenciais; eles baixam o chart fixado do registry e renderizam.
 ./scripts/validate-cilium-values-overrides.test.sh
 ```
 
-Um chart que nao pode ser baixado e reportado como limitacao, nao como falha —
-assim a checagem continua util offline. Um chart que *e* resolvido mas falha ao
-renderizar com o arquivo de valores e uma falha real.
+Um chart que nao pode ser resolvido ou baixado faz a validacao falhar: um
+resultado aprovado precisa provar que todo addon selecionado foi renderizado.
+Um chart que resolve mas falha ao renderizar com o arquivo de valores tambem e
+uma falha real.
 
 ## Alterando um arquivo de valores
 
